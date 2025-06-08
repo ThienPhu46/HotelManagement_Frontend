@@ -26,7 +26,7 @@ const ServiceManagement = () => {
   const [serviceToDelete, setServiceToDelete] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const API_BASE_URL = 'http://localhost:5282';
+  const API_BASE_URL = 'https://localhost:7087';
 
   const fetchServiceTypes = useCallback(async () => {
     try {

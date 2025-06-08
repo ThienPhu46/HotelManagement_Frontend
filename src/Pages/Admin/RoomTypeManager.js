@@ -26,7 +26,7 @@ const RoomTypeManagement = () => {
   const [showApiErrorModal, setShowApiErrorModal] = useState(false);
   const [apiErrorMessage, setApiErrorMessage] = useState('');
 
-  const API_BASE_URL = 'http://localhost:5282';
+  const API_BASE_URL = 'https://localhost:7087';
 
   const fetchRoomTypes = useCallback(async () => {
     try {
@@ -50,15 +50,21 @@ const RoomTypeManagement = () => {
         if (!Array.isArray(typeData)) {
           throw new Error('Dữ liệu loại phòng không phải là mảng');
         }
-        const validatedData = typeData.map((type, index) => ({
-          id: type.maLoaiPhong || `TEMP_${index}`,
-          typeCode: type.maLoaiPhong || `TEMP_${index}`,
-          typeName: type.tenLoaiPhong || 'N/A',
-          bedCount: type.moTa?.match(/(\d+)\s*giường/)?.[1] || 1,
-          dayPrice: type.giaPhong !== undefined ? `${parseFloat(type.giaPhong).toLocaleString('vi-VN')} VND` : '0 VND',
-          hourPrice: type.giaGio !== undefined ? `${parseFloat(type.giaGio).toLocaleString('vi-VN')} VND` : '0 VND',
-          description: type.moTa || ''
-        }));
+        const validatedData = typeData.map((type, index) => {
+          const rawDayPrice = parseFloat(type.giaPhong) || 0;
+          const rawHourPrice = Math.round(rawDayPrice / 24);
+
+          return {
+            id: type.maLoaiPhong || `TEMP_${index}`,
+            typeCode: type.maLoaiPhong || `TEMP_${index}`,
+            typeName: type.tenLoaiPhong || 'N/A',
+            bedCount: type.moTa?.match(/(\\d+)\\s*giường/)?.[1] || 1,
+            dayPrice: `${rawDayPrice.toLocaleString('vi-VN')} VND`,
+            hourPrice: `${rawHourPrice.toLocaleString('vi-VN')} VND`,
+            description: type.moTa || ''
+          };
+        });
+
         setRoomTypes(validatedData);
         setErrorMessage('');
       } else {

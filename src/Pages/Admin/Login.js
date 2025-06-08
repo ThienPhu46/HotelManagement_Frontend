@@ -61,12 +61,11 @@ const Login = () => {
       }
 
       const role = mapMaVaiTroToRole(maVaiTro);
-      console.log('Mapped Role:', role);
-
-      try {
+      console.log('Mapped Role:', role);      try {
         localStorage.setItem('token', accessToken);
         localStorage.setItem('role', role);
-        console.log('Stored in localStorage - Token:', localStorage.getItem('token'), 'Role:', localStorage.getItem('role'));
+        localStorage.setItem('username', username); // Lưu username để xác định user hiện tại
+        console.log('Stored in localStorage - Token:', localStorage.getItem('token'), 'Role:', localStorage.getItem('role'), 'Username:', localStorage.getItem('username'));
       } catch (storageError) {
         console.error('Failed to save to localStorage:', storageError);
         setError('Không thể lưu thông tin đăng nhập. Vui lòng thử lại.');
@@ -139,7 +138,7 @@ const Login = () => {
               className="eye-icon"
               onClick={() => setShowPassword(!showPassword)}
             >
-              <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+              <FontAwesomeIcon icon={showPassword ?faEye: faEyeSlash} />
             </span>
           </div>
           <div className="buttonlogin">

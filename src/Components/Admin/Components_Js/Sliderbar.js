@@ -37,11 +37,6 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, onLogoutClick }) => {
           </Link>
         </li>
         <li>
-          <Link to="/AccountCustomerManager">
-            <span className="menu-icon"><img src="/icon_LTW/SB_QLTKKH.png" alt="QLTK Khách Hàng"></img></span> QLTK Khách Hàng
-          </Link>
-        </li>
-        <li>
           <Link to="/RoomManager">
             <span className="menu-icon"><img src="/icon_LTW/SB_QLPhong.png" alt="QL Phòng"></img></span> QL Phòng
           </Link>

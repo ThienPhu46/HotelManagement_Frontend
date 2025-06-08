@@ -128,11 +128,6 @@
   text-align: left;
 }
 
-.sidebar-menu-button:hover {
-  background-color: rgba(10, 61, 139, 0.1);
-  transform: translateX(5px);
-}
-
 .sidebar-menu-button  {
   color: black;
 }

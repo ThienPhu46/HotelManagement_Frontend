@@ -21,11 +21,12 @@ const PointProgramManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [showDeleteError, setShowDeleteError] = useState(false);
-  const [showInputError, setShowInputError] = useState(false); // Thêm state cho modal lỗi nhập liệu
+  const [showInputError, setShowInputError] = useState(false);
   const [programToDelete, setProgramToDelete] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showDuplicateError, setShowDuplicateError] = useState(false);
 
-  const API_BASE_URL = 'http://localhost:5282';
+  const API_BASE_URL = 'https://localhost:7087';
 
   const fetchPointPrograms = useCallback(async () => {
     try {
@@ -53,8 +54,8 @@ const PointProgramManagement = () => {
           maCT: program.maCT || `TEMP_${index}`,
           tenCT: program.tenCT || 'N/A',
           diemToiThieu: program.diemToiThieu !== undefined ? program.diemToiThieu : 0,
-          mucGiamGia: program.mucGiamGia !== undefined ? (program.mucGiamGia * 100).toFixed(2) + '%' : '0%',
-          tyLeTichDiem: program.tyLeTichDiem !== undefined ? (program.tyLeTichDiem * 100).toFixed(2) + '%' : '0%'
+          mucGiamGia: program.mucGiamGia !== undefined ? `${program.mucGiamGia}%` : '0%',
+          tyLeTichDiem: program.tyLeTichDiem !== undefined ? `${program.tyLeTichDiem}%` : '0%'
         }));
         setPointPrograms(validatedData);
         setErrorMessage('');
@@ -81,12 +82,13 @@ const PointProgramManagement = () => {
   };
 
   const handleEdit = (program) => {
+    // Lấy giá trị từ table (đã có %) và loại bỏ % để đưa vào input
     setSelectedProgram({
       maCT: program.maCT,
       tenCT: program.tenCT,
       diemToiThieu: program.diemToiThieu,
       mucGiamGia: program.mucGiamGia.replace('%', ''),
-      tyLeTichDiem: program.tyLeTichDiem.replace('%', '')
+      tyLeTichDiem: program.tyLeTichDiem.replace('%', '') // Đảm bảo giữ nguyên giá trị thập phân
     });
     setShowDetailsModal(true);
   };
@@ -122,7 +124,6 @@ const PointProgramManagement = () => {
     }
   };
 
-  // Kiểm tra dữ liệu đầu vào
   const validateProgramData = (programData) => {
     if (!programData.tenCT.trim()) return 'Vui lòng nhập tên chương trình.';
     if (!programData.diemToiThieu) return 'Vui lòng nhập điểm tối thiểu.';
@@ -135,7 +136,7 @@ const PointProgramManagement = () => {
     const programData = selectedProgram || newProgram;
     const validationError = validateProgramData(programData);
     if (validationError) {
-      setShowInputError(true); // Hiển thị modal lỗi nhập liệu
+      setShowInputError(true);
       return;
     }
 
@@ -145,7 +146,7 @@ const PointProgramManagement = () => {
           (program) => program.tenCT.toLowerCase() === newProgram.tenCT.toLowerCase()
         );
         if (isDuplicate) {
-          setErrorMessage('Tên chương trình đã tồn tại. Vui lòng chọn tên khác.');
+          setShowDuplicateError(true);
           return;
         }
       }
@@ -158,8 +159,8 @@ const PointProgramManagement = () => {
             maCT: selectedProgram.maCT,
             tenCT: selectedProgram.tenCT,
             diemToiThieu: parseInt(selectedProgram.diemToiThieu),
-            mucGiamGia: parseFloat(selectedProgram.mucGiamGia) / 100,
-            tyLeTichDiem: parseFloat(selectedProgram.tyLeTichDiem) / 100
+            mucGiamGia: parseFloat(selectedProgram.mucGiamGia),
+            tyLeTichDiem: parseFloat(selectedProgram.tyLeTichDiem) // Đảm bảo gửi đúng giá trị nhập
           }),
         });
         if (!response.ok) {
@@ -167,11 +168,11 @@ const PointProgramManagement = () => {
           throw new Error(`Lỗi HTTP: ${response.status} - ${response.statusText}. Chi tiết: ${errorText}`);
         }
         const result = await response.json();
-        console.log('PUT Response:', result);
+        console.log('PUT Response:', result); // Log để kiểm tra dữ liệu trả về
         if (result.success) {
           setShowDetailsModal(false);
           setShowSaveConfirm(true);
-          fetchPointPrograms();
+          fetchPointPrograms(); // Lấy lại dữ liệu để cập nhật bảng
         } else {
           throw new Error(result.message || 'Cập nhật chương trình điểm thất bại');
         }
@@ -182,8 +183,8 @@ const PointProgramManagement = () => {
           body: JSON.stringify({
             tenCT: newProgram.tenCT,
             diemToiThieu: parseInt(newProgram.diemToiThieu),
-            mucGiamGia: parseFloat(newProgram.mucGiamGia) / 100,
-            tyLeTichDiem: parseFloat(newProgram.tyLeTichDiem) / 100
+            mucGiamGia: parseFloat(newProgram.mucGiamGia),
+            tyLeTichDiem: parseFloat(newProgram.tyLeTichDiem)
           }),
         });
         if (!response.ok) {
@@ -377,13 +378,14 @@ const PointProgramManagement = () => {
                   <span className="pp-field-icon"><img src="/icon_LTW/QLTĐ_Them3.png" alt="#" /></span>
                   <input
                     type="number"
-                    placeholder="Mức giảm giá (%, ví dụ: 5)"
-                    value={selectedProgram ? selectedProgram.mucGiamGia : newProgram.mucGiamGia}
+                    placeholder="Mức giảm giá (ví dụ: 60)"
+                    value={selectedProgram ? parseFloat(selectedProgram.mucGiamGia) : parseFloat(newProgram.mucGiamGia)}
                     onChange={(e) => {
+                      const value = e.target.value;
                       if (selectedProgram) {
-                        setSelectedProgram({ ...selectedProgram, mucGiamGia: e.target.value });
+                        setSelectedProgram({ ...selectedProgram, mucGiamGia: value });
                       } else {
-                        setNewProgram({ ...newProgram, mucGiamGia: e.target.value });
+                        setNewProgram({ ...newProgram, mucGiamGia: value });
                       }
                     }}
                     className="pp-input-field"
@@ -393,13 +395,15 @@ const PointProgramManagement = () => {
                   <span className="pp-field-icon"><img src="/icon_LTW/QLTĐ_Them3.png" alt="#" /></span>
                   <input
                     type="number"
-                    placeholder="Tỷ lệ tích điểm (%, ví dụ: 1)"
-                    value={selectedProgram ? selectedProgram.tyLeTichDiem : newProgram.tyLeTichDiem}
+                    step="0.01"
+                    placeholder="Tỷ lệ tích điểm (ví dụ: 0.03)"
+                    value={selectedProgram ? parseFloat(selectedProgram.tyLeTichDiem) || '' : parseFloat(newProgram.tyLeTichDiem) || ''}
                     onChange={(e) => {
+                      const value = e.target.value;
                       if (selectedProgram) {
-                        setSelectedProgram({ ...selectedProgram, tyLeTichDiem: e.target.value });
+                        setSelectedProgram({ ...selectedProgram, tyLeTichDiem: value });
                       } else {
-                        setNewProgram({ ...newProgram, tyLeTichDiem: e.target.value });
+                        setNewProgram({ ...newProgram, tyLeTichDiem: value });
                       }
                     }}
                     className="pp-input-field"
@@ -516,6 +520,25 @@ const PointProgramManagement = () => {
             <p className="logout-message">Bạn chưa nhập đầy đủ thông tin. Vui lòng nhập đầy đủ thông tin!</p>
             <div className="logout-modal-buttons">
               <button className="confirm-button" onClick={() => setShowInputError(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDuplicateError && (
+        <div className="logout-modal">
+          <div className="logout-modal-content">
+            <span className="close-icon" onClick={() => setShowDuplicateError(false)}>
+              <img src="/icon_LTW/FontistoClose.png" alt="#" />
+            </span>
+            <div className="logout-modal-header">
+              <span className="header-text">Thông Báo</span>
+            </div>
+            <p className="logout-message">Tên chương trình đã tồn tại. Vui lòng chọn tên khác!</p>
+            <div className="logout-modal-buttons">
+              <button className="confirm-button" onClick={() => setShowDuplicateError(false)}>
                 OK
               </button>
             </div>

@@ -6,7 +6,6 @@ import RoomAdmin from './Pages/Admin/RoomAdmin';
 import BookingRoom from './Pages/Admin/BookingRoom';
 import BillAdmin from './Pages/Admin/BillAdmin';
 import CustomerManager from './Pages/Admin/CustomerManager';
-import AccountCustomerManager from './Pages/Admin/AccountCustomerManager';
 import RoomManager from './Pages/Admin/RoomManager';
 import RoomTypeManager from './Pages/Admin/RoomTypeManager';
 import ServiceManager from './Pages/Admin/ServiceManager';
@@ -64,10 +63,6 @@ const App = () => {
         <Route
           path="/CustomerManager"
           element={<ProtectedRoute element={<CustomerManager />} allowedRole="admin" />}
-        />
-        <Route
-          path="/AccountCustomerManager"
-          element={<ProtectedRoute element={<AccountCustomerManager />} allowedRole="admin" />}
         />
         <Route
           path="/RoomManager"

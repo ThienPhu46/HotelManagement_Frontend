@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import RoomCard from '../../Components/Staff/Components_Js/RoomCard';
 import '../../Design_Css/Staff/RoomStaff.css';
 import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
@@ -7,10 +8,7 @@ import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
 const Room = () => {
   const [filterStatus, setFilterStatus] = useState('Tất cả');
   const [filterType, setFilterType] = useState('Tất cả');
-  const [filterCondition, setFilterCondition] = useState('Tất cả');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState('2025-04-11');
-  const [selectedTime, setSelectedTime] = useState('15:52');
+  const [filterCondition, setFilterCondition] = useState('Tất cả');  const [searchTerm, setSearchTerm] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -20,35 +18,177 @@ const Room = () => {
   const [showAddServiceForm, setShowAddServiceForm] = useState(false);
   const [selectedServices, setSelectedServices] = useState([]);
   const [serviceCategory, setServiceCategory] = useState('Tất cả');
-  const [searchService, setSearchService] = useState('');
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [rooms, setRooms] = useState([
-    { number: 'P101', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đơn', condition: 'Đã dọn dẹp' },
-    { number: 'P102', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đơn', condition: 'Chưa dọn dẹp' },
-    { number: 'P103', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đơn', condition: 'Đã dọn dẹp' },
-    { number: 'P104', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đơn', condition: 'Sửa chữa' },
-    { number: 'P105', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đơn', condition: 'Đã dọn dẹp' },
-    { number: 'P106', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đơn', condition: 'Chưa dọn dẹp' },
-    { number: 'P201', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Đã dọn dẹp' },
-    { number: 'P203', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Chưa dọn dẹp' },
-    { number: 'P204', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Đã dọn dẹp' },
-    { number: 'P205', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Sửa chữa' },
-    { number: 'P206', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Đã dọn dẹp' },
-    { number: 'P207', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Chưa dọn dẹp' },
-    { number: 'P208', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Đã dọn dẹp' },
-    { number: 'P209', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Chưa dọn dẹp' },
-    { number: 'P210', status: 'Phòng trống', date: '0 ngày', roomType: 'Phòng đôi', condition: 'Đã dọn dẹp' },
-    { number: 'P301', status: 'Phòng đã đặt', date: '3 ngày', roomType: 'Phòng gia đình', condition: 'Đã dọn dẹp', guestName: 'Nguyễn Văn A', checkInDate: '2025-05-17T12:30', numberOfGuests: 4 },
-    { number: 'P302', status: 'Phòng đã đặt', date: '2 ngày', roomType: 'Phòng gia đình', condition: 'Chưa dọn dẹp', guestName: 'Trần Gia Huy', checkInDate: '2025-05-18T14:00', numberOfGuests: 3 },
-    { number: 'P303', status: 'Phòng đã đặt', date: '5 ngày', roomType: 'Phòng gia đình', condition: 'Đã dọn dẹp', guestName: 'Lê Thị B', checkInDate: '2025-05-15T09:30', numberOfGuests: 5 },
-    { number: 'P304', status: 'Phòng đã đặt', date: '1 ngày', roomType: 'Phòng gia đình', condition: 'Sửa chữa', guestName: 'Phạm Văn C', checkInDate: '2025-05-19T16:45', numberOfGuests: 4 },
-    { number: 'P305', status: 'Phòng đã đặt', date: '4 ngày', roomType: 'Phòng gia đình', condition: 'Đã dọn dẹp', guestName: 'Hoàng Thị D', checkInDate: '2025-05-16T11:15', numberOfGuests: 6 },
-    { number: 'P306', status: 'Phòng đã đặt', date: '2 ngày', roomType: 'Phòng gia đình', condition: 'Chưa dọn dẹp', guestName: 'Đỗ Văn E', checkInDate: '2025-05-18T10:00', numberOfGuests: 3 },
-    { number: 'P401', status: 'Phòng đang thuê', date: '7 ngày', roomType: 'Phòng đơn', condition: 'Đã dọn dẹp', guestName: 'Nguyễn Thị F', checkInDate: '2025-05-13T08:00', numberOfGuests: 1 },
-    { number: 'P402', status: 'Phòng đang thuê', date: '3 ngày', roomType: 'Phòng đơn', condition: 'Chưa dọn dẹp', guestName: 'Trần Văn G', checkInDate: '2025-05-17T15:20', numberOfGuests: 1 },
-    { number: 'P403', status: 'Phòng đang thuê', date: '5 ngày', roomType: 'Phòng đơn', condition: 'Đã dọn dẹp', guestName: 'Vũ Văn Phú', checkInDate: '2025-05-15T13:40', numberOfGuests: 1 },
-    { number: 'P404', status: 'Phòng đang thuê', date: '2 ngày', roomType: 'Phòng đơn', condition: 'Sửa chữa', guestName: 'Lê Thị I', checkInDate: '2025-05-18T17:00', numberOfGuests: 1 },
-  ]);
+  const [searchService, setSearchService] = useState('');  const [showInvoiceModal, setShowInvoiceModal] = useState(false);  const [rooms, setRooms] = useState([]);
+  const [roomTypes, setRoomTypes] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [customers, setCustomers] = useState({});
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const API_BASE_URL = 'http://localhost:5282/api';
+
+  // Hàm lấy dữ liệu booking từ server
+  const fetchBookings = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/bookings`, {
+        params: {
+          pageNumber: 1,
+          pageSize: 1000,
+          sortBy: 'MaDatPhong',
+          sortOrder: 'ASC'
+        }
+      });
+      
+      if (response.data.success) {
+        const bookingData = response.data.data;
+        setBookings(bookingData);
+        await fetchCustomerData(bookingData);
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách booking:', error);
+    }
+  }, []);
+
+  // Hàm lấy thông tin khách hàng
+  const fetchCustomerData = async (bookingData) => {
+    try {
+      const customerPromises = bookingData.map(async (booking) => {
+        try {
+          const customerResponse = await axios.get(`${API_BASE_URL}/customers/${booking.maKhachHang}`);
+          if (customerResponse.data.success) {
+            return { [booking.maKhachHang]: customerResponse.data.data.hoTenKhachHang };
+          }
+          return { [booking.maKhachHang]: 'Khách hàng không xác định' };
+        } catch (error) {
+          return { [booking.maKhachHang]: 'Khách hàng không xác định' };
+        }
+      });
+      const customersData = await Promise.all(customerPromises);
+      const customersMap = Object.assign({}, ...customersData);
+      setCustomers(customersMap);
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu khách hàng:', error);
+    }
+  };
+
+  // Hàm lấy dữ liệu phòng từ server
+  const fetchRooms = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/rooms`, {
+        params: { searchTerm: '', sortBy: 'MaPhong', sortOrder: 'ASC' },
+      });
+      
+      if (response.data.success) {
+        if (Array.isArray(response.data.data)) {        const mappedRooms = response.data.data.map(room => {
+          // Hàm lấy tên loại phòng (moved inside callback)
+          const getRoomTypeNameLocal = (loaiPhong) => {
+            const roomType = roomTypes.find((type) => String(type.MaLoaiPhong) === String(loaiPhong));
+            return roomType ? roomType.TenLoaiPhong : 'Không xác định';
+          };
+
+          // Lấy thông tin booking thực tế cho phòng này
+          const activeBooking = bookings.find(booking => 
+            booking.maPhong === room.maPhong && 
+            (room.trangThai === 'Đã đặt' || room.trangThai === 'Đang thuê')
+          );
+
+          const bookingInfo = activeBooking ? {
+            guestName: customers[activeBooking.maKhachHang] || 'Đang tải...',
+            checkInDate: activeBooking.gioCheckIn,
+            numberOfGuests: activeBooking.soKhach || 1
+          } : {
+            guestName: '',
+            checkInDate: null,
+            numberOfGuests: 1
+          };
+
+          return {
+            number: room.soPhong || '',
+            status: mapStatusFromAPI(room.trangThai),
+            date: calculateRoomDays(room.trangThai, bookingInfo.checkInDate),
+            roomType: getRoomTypeNameLocal(room.loaiPhong),
+            condition: room.tinhTrang || 'Đã dọn dẹp',
+            guestName: bookingInfo.guestName, // Sử dụng tên khách thực tế
+            checkInDate: bookingInfo.checkInDate, // Sử dụng ngày check-in thực tế
+            numberOfGuests: bookingInfo.numberOfGuests,
+            apiData: room // Lưu dữ liệu gốc từ API
+          };
+        });
+          setRooms(mappedRooms);
+          setError(null);
+        } else {
+          setError('Dữ liệu phòng không đúng định dạng.');
+          setRooms([]);
+        }
+      } else {
+        setError(response.data.message || 'Lỗi khi lấy danh sách phòng từ API.');
+        setRooms([]);
+      }
+    } catch (error) {
+      setError(`Lỗi khi lấy danh sách phòng: ${error.message}`);
+      setRooms([]);    } finally {
+      setLoading(false);
+    }
+  }, [roomTypes, bookings, customers]);
+
+  // Hàm lấy dữ liệu loại phòng từ server
+  const fetchRoomTypes = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/room-types`);
+      if (response.data.success) {
+        if (Array.isArray(response.data.data)) {
+          const mappedRoomTypes = response.data.data.map(type => ({
+            MaLoaiPhong: type.maLoaiPhong,
+            TenLoaiPhong: type.tenLoaiPhong || 'Không xác định',
+            GiaPhong: type.giaPhong || 0,
+            MoTa: type.moTa || '',
+          }));
+          setRoomTypes(mappedRoomTypes);
+        }
+      }
+    } catch (error) {
+      console.error(`Lỗi khi lấy danh sách loại phòng: ${error.message}`);
+    }
+  }, []);
+
+  // Hàm map trạng thái từ API sang UI
+  const mapStatusFromAPI = (apiStatus) => {
+    switch (apiStatus) {
+      case 'Trống':
+        return 'Phòng trống';
+      case 'Đã đặt':
+        return 'Phòng đã đặt';
+      case 'Đang thuê':
+        return 'Phòng đang thuê';
+      default:
+        return 'Phòng trống';
+    }
+  };  // Hàm tính số ngày dựa trên trạng thái và ngày check-in thực tế
+  const calculateRoomDays = (status, checkInDate) => {
+    if (status === 'Trống') return '0 ngày';
+    
+    if (checkInDate) {
+      const today = new Date();
+      const checkIn = new Date(checkInDate);
+      const diffTime = Math.abs(today - checkIn);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays + ' ngày';
+    }
+    
+    return '1 ngày'; // Fallback cho trường hợp không có dữ liệu
+  };  useEffect(() => {
+    fetchRoomTypes();
+  }, [fetchRoomTypes]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  useEffect(() => {
+    if (roomTypes.length > 0 && bookings.length >= 0) {
+      fetchRooms();
+    }
+  }, [roomTypes, bookings, fetchRooms]);
 
   const services = [
     { category: 'Đồ ăn', name: 'Cơm chiên', price: 30000 },
@@ -256,24 +396,6 @@ const Room = () => {
         <div className="r-menu-icon" onClick={toggleSidebar}>☰</div>
         <div className="r-header-content">
           <h1>Phòng</h1>
-          <div className="r-date-time-picker">
-            <div className="r-date-picker">
-              <label>Chọn ngày</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-              />
-            </div>
-            <div className="r-time-picker">
-              <label>Chọn giờ</label>
-              <input
-                type="time"
-                value={selectedTime}
-                onChange={(e) => setSelectedTime(e.target.value)}
-              />
-            </div>
-          </div>
         </div>
         <div className="r-search-bar">
           <input
@@ -307,26 +429,25 @@ const Room = () => {
               Phòng đang thuê
             </label>
           </div>
-        </div>
-        <div className="r-filter-section">
+        </div>        <div className="r-filter-section">
           <h3>Loại phòng</h3>
           <div className="r-filter-options">
             <label>
               <input type="radio" name="type" value="Tất cả" checked={filterType === 'Tất cả'} onChange={() => setFilterType('Tất cả')} />
               Tất cả
             </label>
-            <label>
-              <input type="radio" name="type" value="Phòng đơn" checked={filterType === 'Phòng đơn'} onChange={() => setFilterType('Phòng đơn')} />
-              Phòng đơn
-            </label>
-            <label>
-              <input type="radio" name="type" value="Phòng đôi" checked={filterType === 'Phòng đôi'} onChange={() => setFilterType('Phòng đôi')} />
-              Phòng đôi
-            </label>
-            <label>
-              <input type="radio" name="type" value="Phòng gia đình" checked={filterType === 'Phòng gia đình'} onChange={() => setFilterType('Phòng gia đình')} />
-              Phòng gia đình
-            </label>
+            {roomTypes.map((roomType) => (
+              <label key={roomType.MaLoaiPhong}>
+                <input 
+                  type="radio" 
+                  name="type" 
+                  value={roomType.TenLoaiPhong} 
+                  checked={filterType === roomType.TenLoaiPhong} 
+                  onChange={() => setFilterType(roomType.TenLoaiPhong)} 
+                />
+                {roomType.TenLoaiPhong}
+              </label>
+            ))}
           </div>
         </div>
         <div className="r-filter-section">
@@ -350,60 +471,48 @@ const Room = () => {
             </label>
           </div>
         </div>
-      </div>
-
-      <div className="r-main-content">
-        <div className="r-room-header">
-          <span>Phòng đơn</span>
-        </div>
-        <div className="r-room-list">
-          {filteredRooms.filter(room => room.roomType === 'Phòng đơn').map((room) => (
-            <RoomCard
-              key={room.number}
-              roomNumber={room.number}
-              status={room.status}
-              date={room.date}
-              roomType={room.roomType}
-              condition={room.condition}
-              guestName={room.guestName}
-              onClick={() => handleRoomClick(room)}
-            />
-          ))}
-        </div>
-        <div className="r-room-header">
-          <span>Phòng đôi</span>
-        </div>
-        <div className="r-room-list">
-          {filteredRooms.filter(room => room.roomType === 'Phòng đôi').map((room) => (
-            <RoomCard
-              key={room.number}
-              roomNumber={room.number}
-              status={room.status}
-              date={room.date}
-              roomType={room.roomType}
-              condition={room.condition}
-              guestName={room.guestName}
-              onClick={() => handleRoomClick(room)}
-            />
-          ))}
-        </div>
-        <div className="r-room-header">
-          <span>Phòng gia đình</span>
-        </div>
-        <div className="r-room-list">
-          {filteredRooms.filter(room => room.roomType === 'Phòng gia đình').map((room) => (
-            <RoomCard
-              key={room.number}
-              roomNumber={room.number}
-              status={room.status}
-              date={room.date}
-              roomType={room.roomType}
-              condition={room.condition}
-              guestName={room.guestName}
-              onClick={() => handleRoomClick(room)}
-            />
-          ))}
-        </div>
+      </div>      <div className="r-main-content">
+        {loading ? (
+          <div className="loading-container">
+            <p>Đang tải dữ liệu phòng...</p>
+          </div>
+        ) : error ? (
+          <div className="error-container">
+            <p>Lỗi: {error}</p>
+            <button onClick={fetchRooms}>Thử lại</button>
+          </div>
+        ) : roomTypes.length === 0 ? (
+          <div className="no-data-container">
+            <p>Không có dữ liệu loại phòng</p>
+          </div>
+        ) : (
+          roomTypes.map((roomType) => {
+            const roomsOfType = filteredRooms.filter(room => room.roomType === roomType.TenLoaiPhong);
+            if (roomsOfType.length === 0) return null;
+            
+            return (
+              <div key={roomType.MaLoaiPhong}>
+                <div className="r-room-header">
+                  <span>{roomType.TenLoaiPhong}</span>
+                </div>
+                <div className="r-room-list">
+                  {roomsOfType.map((room) => (
+                    <RoomCard
+                      key={room.number}
+                      roomNumber={room.number}
+                      status={room.status}
+                      date={room.date}
+                      roomType={room.roomType}
+                      condition={room.condition}
+                      guestName={room.guestName}
+                      onClick={() => handleRoomClick(room)}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {selectedRoom && (

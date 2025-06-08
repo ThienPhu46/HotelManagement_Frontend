@@ -7,9 +7,7 @@ import LogoutModal from '../../Components/Admin/Components_Js/LogoutModal';
 const AccountManagement = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);  const [selectedAccount, setSelectedAccount] = useState(null);
   const [newAccount, setNewAccount] = useState({
     tenTaiKhoan: '',
     matKhau: '',
@@ -24,15 +22,36 @@ const AccountManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
   const [showDeleteError, setShowDeleteError] = useState(false);
-  const [showInputError, setShowInputError] = useState(false);
-  const [showDuplicateError, setShowDuplicateError] = useState(false); // New state for duplicate error modal
+  const [showInputError, setShowInputError] = useState(false);  const [showDuplicateError, setShowDuplicateError] = useState(false); // New state for duplicate error modal
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize] = useState(10);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // States for password change functionality
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [changePasswordData, setChangePasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswordChangeSuccess, setShowPasswordChangeSuccess] = useState(false);
+  const [showPasswordChangeError, setShowPasswordChangeError] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [showPasswordFields, setShowPasswordFields] = useState({
+    oldPassword: false,
+    newPassword: false,
+    confirmPassword: false
+  });
+  const API_BASE_URL = 'https://localhost:7087/api/accounts';
 
-  const API_BASE_URL = 'http://localhost:5282/api/accounts';
+  const togglePasswordVisibility = (field) => {
+    setShowPasswordFields(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -115,13 +134,8 @@ const AccountManagement = () => {
     setShowLogoutConfirm(false);
     window.location.href = '/';
   };
-
   const handleCancelLogout = () => {
     setShowLogoutConfirm(false);
-  };
-
-  const toggleShowPassword = () => {
-    setShowPassword(!showPassword);
   };
 
   const validateAccountData = (accountData) => {
@@ -193,7 +207,6 @@ const AccountManagement = () => {
       setErrorMessage('Có lỗi xảy ra khi sửa tài khoản');
     }
   };
-
   const handleDeleteAccount = async () => {
     try {
       console.log('Đang xóa tài khoản với mã:', accountToDelete.maTaiKhoan);
@@ -212,6 +225,129 @@ const AccountManagement = () => {
       console.error('Lỗi chi tiết khi xóa tài khoản:', error);
       setShowDeleteConfirm(false);
       setShowDeleteError(true);
+    }
+  };
+  const handleChangePassword = async () => {
+    // Validate input
+    if (!changePasswordData.oldPassword || !changePasswordData.newPassword || !changePasswordData.confirmPassword) {
+      setPasswordChangeError('Vui lòng nhập đầy đủ thông tin');
+      setShowPasswordChangeError(true);
+      return;
+    }
+
+    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
+      setPasswordChangeError('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      setShowPasswordChangeError(true);
+      return;
+    }
+
+    // Validate new password strength
+    if (changePasswordData.newPassword.length < 6) {
+      setPasswordChangeError('Mật khẩu mới phải có ít nhất 6 ký tự');
+      setShowPasswordChangeError(true);
+      return;
+    }
+
+    if (changePasswordData.oldPassword === changePasswordData.newPassword) {
+      setPasswordChangeError('Mật khẩu mới phải khác mật khẩu cũ');
+      setShowPasswordChangeError(true);
+      return;
+    }    // Get current user information from localStorage - moved outside try block for proper scope
+    const token = localStorage.getItem('token');
+    const currentUsername = localStorage.getItem('username');
+    
+    if (!token) {
+      setPasswordChangeError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      setShowPasswordChangeError(true);
+      return;
+    }
+
+    if (!currentUsername) {
+      setPasswordChangeError('Không thể xác định người dùng hiện tại. Vui lòng đăng nhập lại.');
+      setShowPasswordChangeError(true);
+      return;
+    }
+
+    // Find the current user by username
+    let currentUser = null;
+    
+    if (accounts.length > 0) {
+      currentUser = accounts.find(acc => acc.tenTaiKhoan === currentUsername);
+    }
+    
+    if (!currentUser) {
+      // Fallback: try to get accounts first
+      await fetchAccounts();
+      if (accounts.length > 0) {
+        currentUser = accounts.find(acc => acc.tenTaiKhoan === currentUsername);
+      }
+    }
+    
+    if (!currentUser) {
+      setPasswordChangeError(`Không tìm thấy thông tin tài khoản "${currentUsername}". Vui lòng đăng nhập lại.`);
+      setShowPasswordChangeError(true);
+      return;    }
+    
+    try {
+      console.log('🔐 Password change debug info:');
+      console.log('- Current user:', currentUser.tenTaiKhoan);
+      console.log('- Account ID:', currentUser.maTaiKhoan);
+      console.log('- Old password (first 10 chars):', changePasswordData.oldPassword.substring(0, 10) + '...');
+      console.log('- New password (first 10 chars):', changePasswordData.newPassword.substring(0, 10) + '...');
+      
+      // Use the correct API endpoint with plain text passwords
+      const passwordChangeData = {
+        maTaiKhoan: currentUser.maTaiKhoan,
+        CurrentPassword: changePasswordData.oldPassword, // Plain text old password
+        NewPassword: changePasswordData.newPassword      // Plain text new password
+      };
+
+      console.log('📤 Sending password change request to:', `${API_BASE_URL}/change-password`);
+      const response = await axios.post(`${API_BASE_URL}/change-password`, passwordChangeData);
+
+      if (response.data.success) {
+        console.log('✅ Password change successful:', response.data.message);
+        setShowChangePasswordModal(false);
+        setShowPasswordChangeSuccess(true);
+        setChangePasswordData({
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        // Refresh accounts list to show updated data
+        fetchAccounts();
+      } else {
+        console.log('❌ Backend returned error:', response.data.message);
+        setPasswordChangeError(response.data.message || 'Có lỗi xảy ra khi đổi mật khẩu');
+        setShowPasswordChangeError(true);
+      }
+    } catch (error) {
+      console.error('Lỗi khi đổi mật khẩu:', error);
+      
+      // Handle specific error messages from the API
+      let errorMessage = 'Có lỗi xảy ra khi đổi mật khẩu';
+      
+      if (error.response && error.response.data) {
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.errors) {
+          // Handle validation errors
+          const errorKeys = Object.keys(error.response.data.errors);
+          if (errorKeys.length > 0) {
+            errorMessage = error.response.data.errors[errorKeys[0]][0];
+          }
+        }
+      } else if (error.response && error.response.status === 404) {
+        console.log('❌ User not found error');
+        errorMessage = 'Không tìm thấy người dùng. Vui lòng đăng nhập lại.';
+      } else if (error.message) {
+        console.log('❌ Network or other error:', error.message);
+        errorMessage = 'Có lỗi kết nối xảy ra. Vui lòng thử lại.';
+      }
+      
+      console.log('❌ Password change failed:', errorMessage);
+      setPasswordChangeError(errorMessage);
+      setShowPasswordChangeError(true);
     }
   };
 
@@ -235,8 +371,7 @@ const AccountManagement = () => {
         <div className="more-icon" onClick={() => console.log('Mở tùy chọn bổ sung')}>⋮</div>
       </div>
 
-      <div className="am-content-wrapper">
-        <div className="am-search-add-section">
+      <div className="am-content-wrapper">        <div className="am-search-add-section">
           <div className="am-search-box">
             <span className="am-search-icon"><img src="/icon_LTW/TimKiem.png" alt="#" /></span>
             <input
@@ -247,7 +382,17 @@ const AccountManagement = () => {
             />
           </div>
           <div className="am-add-action">
-            <button className="am-add-account-btn" onClick={() => {
+            <button className="am-change-password-btn" onClick={() => {
+              setChangePasswordData({
+                oldPassword: '',
+                newPassword: '',
+                confirmPassword: ''
+              });
+              setShowChangePasswordModal(true);
+              setPasswordChangeError('');
+            }}>
+              Đổi mật khẩu
+            </button>            <button className="am-add-account-btn" onClick={() => {
               setNewAccount({
                 tenTaiKhoan: '',
                 matKhau: '',
@@ -258,7 +403,6 @@ const AccountManagement = () => {
               });
               setSelectedAccount(null);
               setShowDetailsModal(true);
-              setShowPassword(false);
               setErrorMessage('');
             }}>
               Thêm tài khoản
@@ -291,11 +435,9 @@ const AccountManagement = () => {
                     <td>{account.phone}</td>
                     <td>{account.tenVaiTro}</td>
                     <td>
-                      <div className="am-edit-action">
-                        <button className="am-edit-btn" onClick={() => {
+                      <div className="am-edit-action">                        <button className="am-edit-btn" onClick={() => {
                           setSelectedAccount(account);
                           setShowDetailsModal(true);
-                          setShowPassword(false);
                           setErrorMessage('');
                         }}>
                           <span className="am-edit-icon"><img src="/icon_LTW/Edit.png" alt="#" /></span>
@@ -335,8 +477,7 @@ const AccountManagement = () => {
           <div className="am-modal-wrapper">
             <h2 className="am-modal-title">{selectedAccount ? `Sửa tài khoản ${selectedAccount.maTaiKhoan}` : 'Thêm tài khoản'}</h2>
             <div className="am-modal-content">
-              <div className="am-form-container">
-                <div className="am-form-field">
+              <div className="am-form-container">                <div className="am-form-field">
                   <span className="am-field-icon"><img src="/icon_LTW/QLTKKH_Ten.png" alt="#" /></span>
                   <input
                     type="text"
@@ -350,37 +491,32 @@ const AccountManagement = () => {
                       }
                     }}
                     className="am-input-field"
-                  />
-                </div>
-                <div className="am-form-field">
-                  <span className="am-field-icon"><img src="/icon_LTW/GridiconsLock (1).png" alt="#" /></span>
-                  <div style={{ position: 'relative', width: '250px' }}>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Mật khẩu"
-                      value={selectedAccount ? selectedAccount.matKhau : newAccount.matKhau}
-                      onChange={(e) => {
-                        if (selectedAccount) {
-                          setSelectedAccount({ ...selectedAccount, matKhau: e.target.value });
-                        } else {
-                          setNewAccount({ ...newAccount, matKhau: e.target.value });
-                        }
-                      }}
-                      className="am-input-field"
-                    />
-                    <button
-                      type="button"
-                      className="am-toggle-password"
-                      onClick={toggleShowPassword}
-                    >
-                      <img
-                        src={showPassword ? '/icon_LTW/MdiEye (1).png' : '/icon_LTW/MdiEyeOff (1).png'}
-                        alt="Toggle Password Visibility"
-                        style={{ width: '20px', height: '20px' }}
+                  />                </div>
+                {!selectedAccount && (
+                  <div className="am-form-field">
+                    <span className="am-field-icon"><img src="/icon_LTW/GridiconsLock (1).png" alt="#" /></span>
+                    <div style={{ position: 'relative', width: '250px' }}>
+                      <input
+                        type={showPasswordFields.newPassword ? 'text' : 'password'}
+                        placeholder="Mật khẩu"
+                        value={newAccount.matKhau}
+                        onChange={(e) => setNewAccount({ ...newAccount, matKhau: e.target.value })}
+                        className="am-input-field"
                       />
-                    </button>
+                      <button
+                        type="button"
+                        className="am-toggle-password"
+                        onClick={() => togglePasswordVisibility('newPassword')}
+                      >
+                        <img
+                          src={showPasswordFields.newPassword ? '/icon_LTW/MdiEye (1).png' : '/icon_LTW/MdiEyeOff (1).png'}
+                          alt="Toggle Password Visibility"
+                          style={{ width: '20px', height: '20px' }}
+                        />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="am-form-field">
                   <span className="am-field-icon"><img src="/icon_LTW/ClarityEmployeeSolid.png" alt="#" /></span>
                   <input
@@ -464,11 +600,9 @@ const AccountManagement = () => {
                   tenTaiKhoan: '',
                   matKhau: '',
                   tenHienThi: '',
-                  email: '',
-                  phone: '',
+                  email: '',                phone: '',
                   maVaiTro: ''
                 });
-                setShowPassword(false);
                 setErrorMessage('');
               }}>Hủy bỏ</button>
             </div>
@@ -570,9 +704,7 @@ const AccountManagement = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {showDuplicateError && (
+      )}      {showDuplicateError && (
         <div className="logout-modal">
           <div className="logout-modal-content">
             <span className="close-icon" onClick={() => setShowDuplicateError(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
@@ -584,6 +716,143 @@ const AccountManagement = () => {
               <button className="confirm-button" onClick={() => {
                 setShowDuplicateError(false);
                 setErrorMessage('');
+              }}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}      {showChangePasswordModal && (
+        <div className="am-modal-overlay">
+          <div className="am-modal-wrapper">
+            <h2 className="am-modal-title">Đổi mật khẩu</h2>
+            <div className="am-modal-content">
+              <div className="am-form-container">
+                <div className="am-form-field">
+                  <span className="am-field-icon"><img src="/icon_LTW/GridiconsLock (1).png" alt="#" /></span>
+                  <div style={{ position: 'relative', width: '250px' }}>
+                    <input
+                      type={showPasswordFields.oldPassword ? 'text' : 'password'}
+                      placeholder="Mật khẩu cũ"
+                      value={changePasswordData.oldPassword}
+                      onChange={(e) => setChangePasswordData({ ...changePasswordData, oldPassword: e.target.value })}
+                      className="am-input-field"
+                    />
+                    <button
+                      type="button"
+                      className="am-toggle-password"
+                      onClick={() => togglePasswordVisibility('oldPassword')}
+                    >
+                      <img
+                        src={showPasswordFields.oldPassword ? '/icon_LTW/MdiEye (1).png' : '/icon_LTW/MdiEyeOff (1).png'}
+                        alt="Toggle Password Visibility"
+                        style={{ width: '20px', height: '20px' }}
+                      />
+                    </button>
+                  </div>
+                </div>
+                <div className="am-form-field">
+                  <span className="am-field-icon"><img src="/icon_LTW/GridiconsLock (1).png" alt="#" /></span>
+                  <div style={{ position: 'relative', width: '250px' }}>
+                    <input
+                      type={showPasswordFields.newPassword ? 'text' : 'password'}
+                      placeholder="Mật khẩu mới"
+                      value={changePasswordData.newPassword}
+                      onChange={(e) => setChangePasswordData({ ...changePasswordData, newPassword: e.target.value })}
+                      className="am-input-field"
+                    />
+                    <button
+                      type="button"
+                      className="am-toggle-password"
+                      onClick={() => togglePasswordVisibility('newPassword')}
+                    >
+                      <img
+                        src={showPasswordFields.newPassword ? '/icon_LTW/MdiEye (1).png' : '/icon_LTW/MdiEyeOff (1).png'}
+                        alt="Toggle Password Visibility"
+                        style={{ width: '20px', height: '20px' }}
+                      />
+                    </button>                  </div>
+                </div>
+                <div className="am-form-field">
+                  <span className="am-field-icon"><img src="/icon_LTW/GridiconsLock (1).png" alt="#" /></span>
+                  <div style={{ position: 'relative', width: '250px' }}>
+                    <input
+                      type={showPasswordFields.confirmPassword ? 'text' : 'password'}
+                      placeholder="Nhập lại mật khẩu mới"
+                      value={changePasswordData.confirmPassword}
+                      onChange={(e) => setChangePasswordData({ ...changePasswordData, confirmPassword: e.target.value })}
+                      className="am-input-field"
+                    />
+                    <button
+                      type="button"
+                      className="am-toggle-password"
+                      onClick={() => togglePasswordVisibility('confirmPassword')}
+                    >
+                      <img
+                        src={showPasswordFields.confirmPassword ? '/icon_LTW/MdiEye (1).png' : '/icon_LTW/MdiEyeOff (1).png'}
+                        alt="Toggle Password Visibility"
+                        style={{ width: '20px', height: '20px' }}
+                      />
+                    </button>
+                  </div>
+                  {changePasswordData.confirmPassword && changePasswordData.newPassword !== changePasswordData.confirmPassword && (
+                    <div style={{ marginTop: '5px', fontSize: '0.8rem', color: '#dc3545' }}>
+                      Mật khẩu không khớp
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="am-modal-actions">
+              <button className="am-save-btn" onClick={handleChangePassword}>Đổi mật khẩu</button>
+              <button className="am-cancel-btn" onClick={() => {
+                setShowChangePasswordModal(false);
+                setChangePasswordData({
+                  oldPassword: '',
+                  newPassword: '',
+                  confirmPassword: ''
+                });
+                setPasswordChangeError('');
+                setShowPasswordFields({
+                  oldPassword: false,
+                  newPassword: false,
+                  confirmPassword: false
+                });
+              }}>Hủy bỏ</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPasswordChangeSuccess && (
+        <div className="logout-modal">
+          <div className="logout-modal-content">
+            <span className="close-icon" onClick={() => setShowPasswordChangeSuccess(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
+            <div className="logout-modal-header">
+              <span className="header-text">Thông Báo</span>
+            </div>
+            <p className="logout-message">Đổi mật khẩu thành công!</p>
+            <div className="logout-modal-buttons">
+              <button className="confirm-button" onClick={() => setShowPasswordChangeSuccess(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPasswordChangeError && (
+        <div className="logout-modal">
+          <div className="logout-modal-content">
+            <span className="close-icon" onClick={() => setShowPasswordChangeError(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
+            <div className="logout-modal-header">
+              <span className="header-text">Thông Báo</span>
+            </div>
+            <p className="logout-message">{passwordChangeError}</p>
+            <div className="logout-modal-buttons">
+              <button className="confirm-button" onClick={() => {
+                setShowPasswordChangeError(false);
+                setPasswordChangeError('');
               }}>
                 OK
               </button>

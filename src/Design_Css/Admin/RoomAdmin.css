@@ -13,7 +13,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 10px 20px;
+    padding: 8px 15px;
     background-color: #f8f9fa;
     border-bottom: 1px solid #ddd;
     position: fixed;
@@ -21,16 +21,16 @@
     top: 0;
     z-index: 200;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    height: 140px; /* Tăng chiều cao để chứa toàn bộ nội dung */
+    height: 80px; /* Giảm chiều cao để nhỏ gọn hơn */
     box-sizing: border-box;
     overflow: hidden; /* Ngăn nội dung tràn ra ngoài */
 }
 
 .r-menu-icon {
     position: absolute;
-    left: 20px;
-    top: 15px;
-    font-size: 24px;
+    left: 15px;
+    top: 10px;
+    font-size: 22px;
     cursor: pointer;
     color: #333;
 }
@@ -39,14 +39,15 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    margin-left: 50px;
+    margin-left: 45px;
+    margin-top: 5px;
 }
 
 .r-page-header h1 {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
     color: #333;
-    margin: 5px 0;
+    margin: 0;
 }
 
 .r-date-time-picker {
@@ -79,13 +80,13 @@
     display: flex;
     align-items: center;
     width: 100%;
-    max-width: 400px;
+    max-width: 400px; /* Tăng từ 350px lên 400px */
     align-self: center;
 }
 
 .r-search-bar input {
-    padding: 5px 10px;
-    font-size: 14px;
+    padding: 8px 12px; /* Tăng từ 6px 10px lên 8px 12px */
+    font-size: 15px; /* Tăng từ 14px lên 15px */
     border: 1px solid #ddd;
     border-radius: 4px 0 0 4px;
     outline: none;
@@ -93,12 +94,12 @@
 }
 
 .r-search-bar .r-search-icon {
-    padding: 5px 10px;
+    padding: 8px 12px; /* Tăng từ 6px 10px lên 8px 12px */
     background-color: #6c757d;
     color: #fff;
     border-radius: 0 4px 4px 0;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px; /* Tăng từ 14px lên 15px */
 }
 
 .r-filter-sidebar {
@@ -106,9 +107,10 @@
     min-width: 250px;
     background-color: #fff;
     padding: 15px;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);    
     position: fixed;
-    top: 140px; /* Khớp với chiều cao header */
+    top: 90px; /* Khớp với chiều cao header mới */
+    left: 0;
     height: calc(100vh - 140px);
     overflow-y: auto;
     z-index: 100;
@@ -170,12 +172,12 @@
 .r-main-content {
     flex: 1;
     margin-left: 250px;
-    margin-top: 150px; /* Tăng để tránh bị che bởi header */
+    margin-top: 90px; /* Giảm để khớp với header nhỏ gọn hơn */
     padding: 20px;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    min-height: calc(100vh - 150px);
+    min-height: calc(100vh - 90px);
 }
 
 .r-room-header {
@@ -193,6 +195,20 @@
     gap: 10px;
     width: 100%;
     min-height: 100px;
+    padding-bottom: 30px;
+}
+
+.top-title-container {
+  display: flex;
+  align-items: center;
+}
+
+.top-title {
+  font-size: 1.3rem; /* Giảm kích thước font */
+  font-weight: 600;
+  color: #000;
+  margin-left: 1rem; /* Giảm margin */
+  margin-bottom: 0; /* Loại bỏ margin bottom để header gọn hơn */
 }
 
 /* Responsive Design */
@@ -200,12 +216,12 @@
     .r-filter-sidebar {
         width: 200px;
         min-width: 200px;
-        top: 140px;
+        top: 90px; /* Cập nhật cho header nhỏ gọn */
     }
 
     .r-main-content {
         margin-left: 200px;
-        margin-top: 150px;
+        margin-top: 90px; /* Cập nhật cho header nhỏ gọn */
     }
 }
 
@@ -214,12 +230,12 @@
         width: 150px;
         min-width: 150px;
         padding: 10px;
-        top: 140px;
+        top: 90px; /* Cập nhật cho header nhỏ gọn */
     }
 
     .r-main-content {
         margin-left: 150px;
-        margin-top: 150px;
+        margin-top: 90px; /* Cập nhật cho header nhỏ gọn */
     }
 
     .r-room-list {
@@ -238,8 +254,8 @@
 
 @media (max-width: 480px) {
     .r-page-header {
-        padding: 10px;
-        height: 160px; /* Tăng chiều cao để chứa nội dung */
+        padding: 8px;
+        height: 90px; /* Giảm chiều cao cho mobile */
     }
 
     .r-date-time-picker {
@@ -250,19 +266,17 @@
 
     .r-date-time-picker input {
         width: 100%;
-    }
-
-    .r-filter-sidebar {
+    }    .r-filter-sidebar {
         position: static;
         width: 100%;
         min-width: 100%;
         height: auto;
-        margin-top: 160px; /* Khớp với chiều cao header */
+        margin-top: 90px; /* Khớp với chiều cao header nhỏ gọn */
     }
 
     .r-main-content {
         margin-left: 0;
-        margin-top: 260px; /* Tính cả header và sidebar */
+        margin-top: 180px; /* Tính cả header và sidebar cho mobile */
     }
 
     .r-header-content {
@@ -378,40 +392,65 @@
     border-collapse: collapse;
 }
 
-.r-service-header {
-    display: flex;
+.r-service-table thead {
     background-color: #1D3E92;
-    color: #fff;
-    padding: 5px;
-    border-radius: 5px 5px 0 0;
+    color: white;
 }
 
-.r-service-header span {
-    flex: 1;
-    text-align: center;
+.r-service-table th,
+.r-service-table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
     font-size: 16px;
-    padding: 10px 0;
+    line-height: 1.5;
+}
+
+.r-service-table th {
+    text-align: left;
     font-weight: 500;
 }
 
-.r-service-row {
-    display: flex;
-    align-items: center;
-    padding: 5px;
-    border-bottom: 1px solid #ddd;
-    min-height: 30px;
+.r-service-table td {
+    background-color: white;
 }
 
-.r-service-row span {
-    flex: 1;
+.r-service-table th:nth-child(2),
+.r-service-table td:nth-child(2),
+.r-service-table th:nth-child(3),
+.r-service-table td:nth-child(3),
+.r-service-table th:nth-child(4),
+.r-service-table td:nth-child(4) {
     text-align: center;
-    font-size: 16px;
-    padding: 10px 0;
-    color: #333;
 }
 
-.r-service-row:last-child {
+.r-service-table th:nth-child(5),
+.r-service-table td:nth-child(5) {
+    text-align: center;
+}
+
+.r-service-table tbody tr:last-child td {
     border-bottom: none;
+}
+
+.r-service-table input[type="number"] {
+    width: 60px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+    font-size: 16px;
+}
+
+.r-service-table .r-actionn-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.r-service-table .r-actionn-button img {
+    width: 30px;
+    height: 30px;
 }
 
 .r-filter-section {
@@ -496,7 +535,6 @@
         opacity: 0;
         transform: translateY(-10px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -629,8 +667,6 @@
     font-size: 18px;
     width: 120px;
 }
-
-
 
 .details-table td:nth-child(2),
 .details-table td:nth-child(4) {

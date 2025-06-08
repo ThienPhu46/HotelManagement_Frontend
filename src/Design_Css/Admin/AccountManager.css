@@ -61,6 +61,7 @@
 .am-add-action {
   display: flex;
   justify-content: center;
+  gap: 1rem;
 }
 
 .am-add-account-btn {
@@ -78,6 +79,24 @@
 }
 
 .am-add-account-btn:hover {
+  background-color: #357abd;
+}
+
+.am-change-password-btn {
+  background-color: #1D3E92;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  white-space: nowrap;
+  width: 210px;
+}
+
+.am-change-password-btn:hover {
   background-color: #357abd;
 }
 
@@ -270,10 +289,15 @@
     max-width: 100%;
     margin-bottom: 0.5rem;
   }
-
   .am-add-account-btn {
     width: 100%;
     padding: 0.5rem;
+  }
+
+  .am-change-password-btn {
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
   }
 
   .am-account-table th,
@@ -327,8 +351,12 @@
   .am-search-box input {
     font-size: 0.9rem;
   }
-
   .am-add-account-btn {
+    font-size: 0.9rem;
+    padding: 0.4rem;
+  }
+
+  .am-change-password-btn {
     font-size: 0.9rem;
     padding: 0.4rem;
   }
