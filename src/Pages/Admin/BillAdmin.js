@@ -364,8 +364,7 @@ const InvoiceList = () => {
                   <span className="info-value">{selectedInvoice.customerDays}</span>
                 </div>
               </div>
-            </div>
-            <table className="details-table">
+            </div>            <table className="details-table">
               <thead>
                 <tr>
                   <th>Dịch vụ</th>
@@ -373,7 +372,8 @@ const InvoiceList = () => {
                   <th>Số lượng</th>
                   <th>Thành tiền</th>
                 </tr>
-              </thead>              <tbody>
+              </thead>
+              <tbody>
                 {selectedInvoice.services.map((service, index) => (
                   <tr key={index}>
                     <td>{service.name}</td>

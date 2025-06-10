@@ -50,7 +50,7 @@ const CustomerManagement = () => {
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
       
       const response = await axios.get(
-        `${API_BASE_URL}/api/customers?searchTerm=${searchTerm}&sortBy=MaKhachHang&sortOrder=ASC`,
+        `${API_BASE_URL}/api/customers?searchTerm=${searchTerm}&sortBy=MaKhachHang&sortOrder=ASC&pageNumber=1&pageSize=100`,
         { headers }
       );
       if (response.data.success) {
@@ -182,16 +182,16 @@ const CustomerManagement = () => {
 
       const program = determineProgram(customerData.tongDiem);
       const tenCT = program.tenCT;
-      const maCT = program.maCT;
+      const maCT = String(program.maCT); // Đảm bảo MaCT là string
 
       const body = {
         MaKhachHang: selectedCustomer ? selectedCustomer.maKhachHang : undefined,
         HoTenKhachHang: customerData.hoTenKhachHang.trim(),
         Email: customerData.email.trim(),
         DienThoai: customerData.dienThoai.trim(),
-        MaCT: maCT,
+        MaCT: maCT, // luôn là string
         TenCT: tenCT,
-        TongDiem: parseInt(customerData.tongDiem || 0, 10),
+        // Không gửi TongDiem nếu backend không cho phép chỉnh sửa
       };
 
       if (selectedCustomer) {
@@ -428,23 +428,7 @@ const CustomerManagement = () => {
                     </span>
                   </div>
                 </div>
-                <div className="cm-form-field">
-                  <span className="cm-field-icon"><img src="/icon_LTW/Điểm.png" alt="#" /></span>
-                  <input
-                    type="number"
-                    placeholder="Tổng điểm"
-                    value={selectedCustomer ? selectedCustomer.tongDiem : newCustomer.tongDiem}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 0;
-                      if (selectedCustomer) {
-                        setSelectedCustomer({ ...selectedCustomer, tongDiem: value });
-                      } else {
-                        setNewCustomer({ ...newCustomer, tongDiem: value });
-                      }
-                    }}
-                    className="cm-input-field"
-                  />
-                </div>
+                {/* Bỏ input tổng điểm ở đây */}
               </div>
             </div>
             <div className="cm-modal-actions">

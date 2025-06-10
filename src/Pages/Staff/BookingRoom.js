@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../../Design_Css/Staff/BookingRoom.css';
 import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
-import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
+import LogoutModal from '../../Components/Admin/Components_Js/LogoutModal';
 import axios from 'axios';
 
 const BookingList = () => {
@@ -13,9 +13,6 @@ const BookingList = () => {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
-  const [bookingToDelete, setBookingToDelete] = useState(null);
   const [showCustomerNotFound, setShowCustomerNotFound] = useState(false);
   const [showNoRoomSelected, setShowNoRoomSelected] = useState(false);
   const [showMissingTimeInfo, setShowMissingTimeInfo] = useState(false);
@@ -88,7 +85,7 @@ const BookingList = () => {
             pageSize: 100,
             searchTerm: null,
             sortBy: 'MaDatPhong',
-            sortOrder: 'ASC'
+            sortOrder: 'DESC' // Sắp xếp mới nhất lên đầu
           }
         });
         if (response.data.success) {
@@ -111,7 +108,7 @@ const BookingList = () => {
             pageNumber: 1,
             pageSize: 100,
             sortBy: 'MaLoaiPhong',
-            sortOrder: 'ASC'
+            sortOrder: 'DESC'
           }
         });
         if (response.data.success) {
@@ -229,48 +226,6 @@ const BookingList = () => {
       }
     } catch (error) {
       console.error('Lỗi khi tải chi tiết đặt phòng:', error);
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    try {
-      console.log(`Thử xóa đặt phòng với maDatPhong: ${bookingToDelete.id}`);
-      console.log(`Gửi yêu cầu DELETE tới ${API_BASE_URL}/bookings/${bookingToDelete.id}`);
-      const deleteBookingResponse = await axios.delete(`${API_BASE_URL}/bookings/${bookingToDelete.id}`);
-      if (!deleteBookingResponse.data.success) {
-        console.error('Xóa đặt phòng thất bại:', deleteBookingResponse.data.message);
-        alert('Xóa đặt phòng thất bại: ' + deleteBookingResponse.data.message);
-        return;
-      }
-      console.log('Xóa đặt phòng thành công');
-
-      setBookings(bookings.filter((booking) => booking.maDatPhong !== bookingToDelete.id));
-
-      const roomResponse = await axios.get(`${API_BASE_URL}/rooms`, {
-        params: {
-          pageNumber: 1,
-          pageSize: 100,
-          trangThai: 'Trống',
-          tinhtrang: 'Đã dọn dẹp',
-          sortBy: 'MaPhong',
-          sortOrder: 'ASC'
-        }
-      });
-      if (roomResponse.data.success) {
-        const rooms = roomResponse.data.data.map(room => ({
-          id: room.soPhong,
-          maPhong: room.maPhong,
-          maLoaiPhong: room.loaiPhong,
-          type: roomTypes[room.loaiPhong] || 'Chưa xác định'
-        }));
-        setAvailableRooms(rooms);
-      }
-
-      setShowDeleteConfirm(false);
-      setShowDeleteSuccess(true);
-    } catch (error) {
-      console.error('Lỗi khi xóa đặt phòng:', error);
-      alert('Đã xảy ra lỗi khi xóa: ' + error.message);
     }
   };
 
@@ -471,12 +426,6 @@ const BookingList = () => {
     setSearchTerm(e.target.value);
   };
 
-  const handleDelete = (id) => {
-    const booking = bookings.find((b) => b.maDatPhong === id);
-    setBookingToDelete({ id: booking.maDatPhong });
-    setShowDeleteConfirm(true);
-  };
-
   const handleAddBooking = () => {
     setIsFormOpen(true);
   };
@@ -558,7 +507,7 @@ const BookingList = () => {
                 <th>Ngày lập phiếu</th>
                 <th>Tên nhân viên</th>
                 <th>Chi tiết</th>
-                <th>Xóa</th>
+                {/* Đã xóa cột Xóa */}
               </tr>
             </thead>
             <tbody>
@@ -574,14 +523,6 @@ const BookingList = () => {
                       onClick={() => handleDetails(booking.maDatPhong)}
                     >
                       <img src="/icon_LTW/ChiTiet.png" alt="Chi tiết"></img>
-                    </button>
-                  </td>
-                  <td>
-                    <button
-                      className="delete-button"
-                      onClick={() => handleDelete(booking.maDatPhong)}
-                    >
-                      <img src="/icon_LTW/Xoa.png" alt="Xóa"></img>
                     </button>
                   </td>
                 </tr>
@@ -763,43 +704,6 @@ const BookingList = () => {
             <p className="logout-message">Bạn đã đặt phòng thành công!</p>
             <div className="logout-modal-buttons">
               <button className="confirm-button" onClick={handleSaveConfirm}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeleteConfirm && bookingToDelete && (
-        <div className="logout-modal">
-          <div className="logout-modal-content">
-            <span className="close-icon" onClick={() => setShowDeleteConfirm(false)}><img src="/icon_LTW/FontistoClose.png" alt="#"></img></span>
-            <div className="logout-modal-header">
-              <span className="header-text">Thông Báo</span>
-            </div>
-            <p className="logout-message">Bạn có muốn xóa đặt phòng này?</p>
-            <div className="logout-modal-buttons">
-              <button className="confirm-button" onClick={handleConfirmDelete}>
-                YES
-              </button>
-              <button className="cancel-button" onClick={() => setShowDeleteConfirm(false)}>
-                NO
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDeleteSuccess && (
-        <div className="logout-modal">
-          <div className="logout-modal-content">
-            <span className="close-icon" onClick={() => setShowDeleteSuccess(false)}><img src="/icon_LTW/FontistoClose.png" alt="#"></img></span>
-            <div className="logout-modal-header">
-              <span className="header-text">Thông Báo</span>
-            </div>
-            <p className="logout-message">Xóa đặt phòng thành công!</p>
-            <div className="logout-modal-buttons">
-              <button className="confirm-button" onClick={() => setShowDeleteSuccess(false)}>
                 OK
               </button>
             </div>

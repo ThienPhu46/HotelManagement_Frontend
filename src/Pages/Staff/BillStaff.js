@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
+import debounce from 'lodash/debounce';
 import '../../Design_Css/Staff/BillStaff.css';
 import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
 import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
@@ -9,10 +10,12 @@ const InvoiceList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);  const [invoices, setInvoices] = useState([]);  const [loading, setLoading] = useState(true);  const [error, setError] = useState(null);
-  const [currentUserName, setCurrentUserName] = useState('');
+  const [selectedInvoice, setSelectedInvoice] = useState(null);  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);  
+  const [invoices, setInvoices] = useState([]);  
+  const [loading, setLoading] = useState(true);  
+  const [error, setError] = useState(null);
   const API_BASE_URL = 'https://localhost:7087/api';
+
   // Hàm tính số ngày từ check-in/check-out
   const calculateRoomDays = (checkInDate, checkOutDate) => {
     if (checkInDate && checkOutDate) {
@@ -29,85 +32,51 @@ const InvoiceList = () => {
       }
       return `${diffHours} giờ`;
     }
-    return '1 ngày';
-  };
+    return '1 ngày';  };
 
-  // Hàm lấy thông tin người dùng hiện tại
-  const fetchCurrentUser = useCallback(async () => {
-    try {
-      const username = localStorage.getItem('username');
-      if (username) {
-        const response = await axios.get(`${API_BASE_URL}/accounts/username/${username}`);
-        if (response.data && response.data.tenHienThi) {
-          setCurrentUserName(response.data.tenHienThi);
-        } else {
-          setCurrentUserName(username); // Fallback to username if tenHienThi is not available
-        }
-      }
-    } catch (error) {
-      console.error('Lỗi khi lấy thông tin người dùng:', error);
-      const username = localStorage.getItem('username');
-      setCurrentUserName(username || 'Nhân viên'); // Fallback
-    }
-  }, [API_BASE_URL]);  // Hàm lấy dữ liệu hóa đơn, thanh toán và dịch vụ
+  // Hàm lấy dữ liệu hóa đơn, thanh toán và dịch vụ
   const fetchInvoices = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      // Gọi API để lấy danh sách hóa đơn
-      const invoiceResponse = await axios.get(`${API_BASE_URL}/invoices`, {
-        params: { pageNumber: 1, pageSize: 100, sortBy: 'MaHoaDon', sortOrder: 'DESC' }
-      });
+      const [invoiceResponse, paymentResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/invoices`, { params: { pageNumber: 1, pageSize: 100, sortBy: 'MaHoaDon', sortOrder: 'DESC' } }),
+        axios.get(`${API_BASE_URL}/payments`, { params: { pageNumber: 1, pageSize: 100, sortBy: 'MaThanhToan', sortOrder: 'DESC' } })
+      ]);
 
-      if (!invoiceResponse.data.success) {
-        throw new Error(invoiceResponse.data.message || 'Lỗi khi lấy danh sách hóa đơn');
-      }
+      if (!invoiceResponse.data.success) throw new Error(invoiceResponse.data.message || 'Lỗi khi lấy danh sách hóa đơn');
+      if (!paymentResponse.data.success) throw new Error(paymentResponse.data.message || 'Lỗi khi lấy danh sách thanh toán');
 
       const invoiceData = invoiceResponse.data.data;
-      if (!Array.isArray(invoiceData)) {
-        throw new Error('Dữ liệu hóa đơn không đúng định dạng');
-      }
+      const paymentData = paymentResponse.data.data;
 
-      // Gọi API để lấy danh sách thanh toán
-      const paymentResponse = await axios.get(`${API_BASE_URL}/payments`, {
-        params: { pageNumber: 1, pageSize: 100, sortBy: 'MaThanhToan', sortOrder: 'DESC' }
-      });
+      if (!Array.isArray(invoiceData)) throw new Error('Dữ liệu hóa đơn không đúng định dạng');
 
-      if (!paymentResponse.data.success) {
-        throw new Error(paymentResponse.data.message || 'Lỗi khi lấy danh sách thanh toán');
-      }
-
-      const paymentData = paymentResponse.data.data;      // Map dữ liệu hóa đơn
-      const mappedInvoices = await Promise.all(invoiceData.map(async (invoice) => {        // Tìm thanh toán tương ứng với mã hóa đơn
+      const mappedInvoices = await Promise.all(invoiceData.map(async (invoice) => {
         const payment = paymentData.find(p => p.maHoaDon === invoice.maHoaDon);
-        
-        // Sử dụng ngayThanhToan từ Payment API cho BillAdmin
         const invoiceDate = payment && payment.ngayThanhToan
           ? (() => {
               const paymentDateTime = new Date(payment.ngayThanhToan);
-              // Đảm bảo timezone Việt Nam được xử lý chính xác
-              const vietnamOffset = 7 * 60; // 7 giờ = 420 phút
-              const utc = paymentDateTime.getTime() + (paymentDateTime.getTimezoneOffset() * 60000); // Chuyển về UTC
-              const vietnamTime = new Date(utc + (vietnamOffset * 60000)); // Cộng thêm 7 giờ
-              
+              const vietnamOffset = 7 * 60;
+              const utc = paymentDateTime.getTime() + (paymentDateTime.getTimezoneOffset() * 60000);
+              const vietnamTime = new Date(utc + (vietnamOffset * 60000));
               return vietnamTime.toLocaleString('vi-VN', {
                 day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
               });
-            })() 
-          : (invoice.ngayTaoHoaDon 
+            })()
+          : (invoice.ngayTaoHoaDon
               ? (() => {
                   const invoiceDateTime = new Date(invoice.ngayTaoHoaDon);
                   const vietnamOffset = 7 * 60;
                   const utc = invoiceDateTime.getTime() + (invoiceDateTime.getTimezoneOffset() * 60000);
                   const vietnamTime = new Date(utc + (vietnamOffset * 60000));
-                  
                   return vietnamTime.toLocaleString('vi-VN', {
                     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
                   });
-                })() 
+                })()
               : 'Chưa có ngày thanh toán');
-          
-        // Trạng thái thanh toán dựa trên việc có payment hay không
-        const paymentStatus = payment ? 'Đã thanh toán' : 'Chưa thanh toán';        // Lấy thông tin booking để tính số ngày
+
+        const paymentStatus = payment ? 'Đã thanh toán' : 'Chưa thanh toán';
         let customerDays = '1 ngày';
         try {
           const bookingResponse = await axios.get(`${API_BASE_URL}/bookings/${invoice.maDatPhong}`);
@@ -117,10 +86,7 @@ const InvoiceList = () => {
           }
         } catch (bookingError) {
           console.error(`Lỗi khi lấy thông tin booking ${invoice.maDatPhong}:`, bookingError);
-        }
-
-        // Lấy danh sách dịch vụ từ BookingService đã thanh toán
-        let services = [
+        }        let services = [
           {
             name: 'Thuê phòng',
             price: invoice.tongTienPhong.toLocaleString('vi-VN'),
@@ -128,14 +94,12 @@ const InvoiceList = () => {
             total: invoice.tongTienPhong.toLocaleString('vi-VN')
           }
         ];
+        
+        // Add additional services
         try {
-          const servicesResponse = await axios.get(`${API_BASE_URL}/bookingservice`, {
-            params: { searchTerm: invoice.maDatPhong }
-          });
+          const servicesResponse = await axios.get(`${API_BASE_URL}/bookingservice`, { params: { searchTerm: invoice.maDatPhong } });
           if (servicesResponse.data.success && servicesResponse.data.data) {
-            // Tính tổng tiền dịch vụ từ BookingService
             const serviceTotal = servicesResponse.data.data.reduce((sum, service) => sum + service.thanhTien, 0);
-            // Kiểm tra tổng tiền dịch vụ có khớp với TongTienDichVu từ Invoice
             if (serviceTotal === invoice.tongTienDichVu) {
               const additionalServices = servicesResponse.data.data.map(service => ({
                 name: service.tenDichVu,
@@ -150,53 +114,60 @@ const InvoiceList = () => {
           }
         } catch (serviceError) {
           console.error(`Lỗi khi lấy dịch vụ cho hóa đơn ${invoice.maHoaDon}:`, serviceError);
-        }        // Lưu riêng ngày lập hóa đơn từ Invoice API
-        const invoiceCreationDate = invoice.ngayTaoHoaDon 
+        }        // Add point discount if payment exists and has point usage
+        let finalTotal = invoice.tongThanhTien;
+        if (payment && payment.soDiemSuDung > 0 && payment.soTienGiam > 0) {
+          services.push({
+            name: 'Sử dụng điểm',
+            price: -payment.soTienGiam,
+            quantity: 1,
+            total: -payment.soTienGiam
+          });
+          // Calculate final total after point discount
+          finalTotal = invoice.tongThanhTien - payment.soTienGiam;
+        }
+
+        const invoiceCreationDate = invoice.ngayTaoHoaDon
           ? (() => {
               const invoiceDateTime = new Date(invoice.ngayTaoHoaDon);
               const vietnamOffset = 7 * 60;
               const utc = invoiceDateTime.getTime() + (invoiceDateTime.getTimezoneOffset() * 60000);
               const vietnamTime = new Date(utc + (vietnamOffset * 60000));
-              
               return vietnamTime.toLocaleString('vi-VN', {
                 day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
               });
-            })() 
+            })()
           : 'Chưa có ngày lập';        return {
           id: invoice.maHoaDon,
-          date: invoiceDate, // Ngày thanh toán cho bảng danh sách
-          invoiceCreationDate: invoiceCreationDate, // Ngày lập hóa đơn cho modal chi tiết
-          status: paymentStatus, // Trạng thái thanh toán
-          employeeName: currentUserName || 'Nhân viên',
-          total: invoice.tongThanhTien.toLocaleString('vi-VN') + ' VND',
+          date: invoiceDate,
+          invoiceCreationDate,
+          rawDate: payment && payment.ngayThanhToan ? new Date(payment.ngayThanhToan) : new Date(invoice.ngayTaoHoaDon),
+          status: paymentStatus,
+          total: finalTotal.toLocaleString('vi-VN') + ' VND',
           bookingId: invoice.maDatPhong,
           customerName: invoice.hoTenKhachHang || 'Khách hàng',
           customerRoom: invoice.soPhong || 'Không xác định',
           customerDays,
           services,
-          grandTotal: invoice.tongThanhTien.toLocaleString('vi-VN') + ' VND'
+          grandTotal: finalTotal.toLocaleString('vi-VN') + ' VND'
         };
-      }));      setInvoices(mappedInvoices);
-      setError(null);
-      
+      }));
+
+      setInvoices(mappedInvoices);
     } catch (err) {
       setError(`Lỗi khi lấy dữ liệu: ${err.message}`);
-      setInvoices([]);    } finally {
+      setInvoices([]);
+    } finally {
       setLoading(false);
     }
-  }, [API_BASE_URL, currentUserName]);useEffect(() => {
-    fetchCurrentUser();
-  }, [fetchCurrentUser]);
+  }, [API_BASE_URL]);
 
+  // Debounce search
+  const debouncedFetch = useMemo(() => debounce(fetchInvoices, 500), [fetchInvoices]);
   useEffect(() => {
-    fetchInvoices();
-    
-    // Thiết lập interval để fetch dữ liệu mỗi 30 giây
-    const interval = setInterval(fetchInvoices, 30000);
-    
-    // Cleanup interval khi component unmount
-    return () => clearInterval(interval);
-  }, [fetchInvoices]);
+    debouncedFetch();
+    return () => debouncedFetch.cancel();
+  }, [debouncedFetch]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -216,14 +187,17 @@ const InvoiceList = () => {
     }
   };
 
-  const filteredInvoices = invoices.filter((invoice) => {
-    const invoiceDate = invoice.date.split(' ')[0];
-    const invoiceIdStr = invoice.id.toString();
-    return (
-      (!selectedDate || invoiceDate === selectedDate) &&
-      (!searchTerm || invoiceIdStr.includes(searchTerm))
-    );
-  });
+  const filteredInvoices = useMemo(() => invoices.filter((invoice) => {
+    const matchesSearch = !searchTerm || invoice.id.toString().includes(searchTerm);
+    if (!selectedDate) return matchesSearch;
+
+    const filterDate = new Date(selectedDate.split('/').reverse().join('-'));
+    const recordDate = invoice.rawDate;
+    return matchesSearch &&
+           recordDate.getFullYear() === filterDate.getFullYear() &&
+           recordDate.getMonth() === filterDate.getMonth() &&
+           recordDate.getDate() === filterDate.getDate();
+  }), [invoices, searchTerm, selectedDate]);
 
   const handleDetails = (id) => {
     const invoice = invoices.find((inv) => inv.id === id);
@@ -284,27 +258,21 @@ const InvoiceList = () => {
       <LogoutModal
         isOpen={showLogoutConfirm}
         onConfirm={handleConfirmLogout}
-        onCancel={handleCancelLogout}      />
+        onCancel={handleCancelLogout}      
+      />
       
       <div className="top-header">
         <div className="top-title-container">
           <div className="menu-icon" onClick={toggleSidebar}>☰</div>
           <div className="top-title">Hóa Đơn</div>
-        </div>        <div className="header-actions">
+        </div>        
+        <div className="header-actions">
           <div className="more-icon" onClick={handleMoreOptions}>⋮</div>
         </div>
       </div>
 
       <div className="content-wrapperr">
         <div className="search-barr-container">
-          <div className="date-picker">
-            <span className="calendar-icon"><img src="/icon_LTW/Lich.png" alt="Lịch" /></span>
-            <input
-              type="date"
-              onChange={handleDateChange}
-              placeholder="Chọn ngày"
-            />
-          </div>
           <div className="search-bar">
             <span className="search-icon"><img src="/icon_LTW/TimKiem.png" alt="Tìm kiếm" /></span>
             <input
@@ -314,21 +282,27 @@ const InvoiceList = () => {
               onChange={handleSearch}
             />
           </div>
-        </div>        <div className="table-wrapper">
+          <div className="date-picker">
+            <span className="calendar-icon"><img src="/icon_LTW/Lich.png" alt="Lịch" /></span>
+            <input
+              type="date"
+              onChange={handleDateChange}
+              placeholder="Chọn ngày"
+            />
+          </div>
+        </div>          <div className="table-wrapper">
           <table className="invoice-table">
             <thead>
               <tr>
                 <th>Mã hóa đơn</th>
                 <th>Tình Trạng / Ngày thanh toán</th>
-                <th>Tên nhân viên lập</th>
                 <th>Tổng tiền</th>
                 <th>Mã chi tiết phiếu thuê</th>
                 <th>Chi tiết</th>
               </tr>
             </thead>
             <tbody>
-{filteredInvoices.map((invoice) => (
-                <tr key={invoice.id}>
+              {filteredInvoices.map((invoice) => (<tr key={invoice.id}>
                   <td>{invoice.id}</td>
                   <td>
                     <div className="payment-status-cell">
@@ -340,7 +314,6 @@ const InvoiceList = () => {
                       </div>
                     </div>
                   </td>
-                  <td>{invoice.employeeName}</td>
                   <td>{invoice.total}</td>
                   <td>{invoice.bookingId}</td>
                   <td>
@@ -370,7 +343,9 @@ const InvoiceList = () => {
               <div className="invoice-title">HÓA ĐƠN</div>
               <div className="invoice-print"><img src="/icon_LTW/HĐ_Print.png" alt="In" /></div>
             </div>
-            <span className="info-name">{selectedInvoice.customerName}</span>            <div className="invoice-info">              <div className="info-row">
+            <span className="info-name">{selectedInvoice.customerName}</span>            
+            <div className="invoice-info">              
+              <div className="info-row">
                 <div className="info-rod">
                   <span className="info-label">Ngày lập hóa đơn:</span>
                   <span className="info-value">{selectedInvoice.invoiceCreationDate}</span>
@@ -379,7 +354,7 @@ const InvoiceList = () => {
                   <span className="info-label">Số phòng:</span>
                   <span className="info-value">{selectedInvoice.customerRoom}</span>
                 </div>
-              </div>              <div className="info-row">
+              </div>                <div className="info-row">
                 <div className="info-rod">
                   <span className="info-label">Số hóa đơn:</span>
                   <span className="info-value">{selectedInvoice.id}</span>
@@ -389,14 +364,7 @@ const InvoiceList = () => {
                   <span className="info-value">{selectedInvoice.customerDays}</span>
                 </div>
               </div>
-              <div className="info-row">
-                <div className="info-rod">
-                  <span className="info-label">Nhân viên lập:</span>
-                  <span className="info-value">{selectedInvoice.employeeName}</span>
-                </div>
-              </div>
-            </div>
-            <table className="details-table">
+            </div>            <table className="details-table">
               <thead>
                 <tr>
                   <th>Dịch vụ</th>
@@ -409,9 +377,17 @@ const InvoiceList = () => {
                 {selectedInvoice.services.map((service, index) => (
                   <tr key={index}>
                     <td>{service.name}</td>
-                    <td>{service.price} VND</td>
+                    <td style={service.name === 'Sử dụng điểm' ? { color: 'red' } : {}}>
+                      {typeof service.price === 'number' && service.price < 0 
+                        ? `-${Math.abs(service.price).toLocaleString('vi-VN')} VND` 
+                        : `${service.price} VND`}
+                    </td>
                     <td>{service.quantity}</td>
-                    <td>{service.total} VND</td>
+                    <td style={service.name === 'Sử dụng điểm' ? { color: 'red' } : {}}>
+                      {typeof service.total === 'number' && service.total < 0 
+                        ? `-${Math.abs(service.total).toLocaleString('vi-VN')} VND` 
+                        : `${service.total} VND`}
+                    </td>
                   </tr>
                 ))}
               </tbody>

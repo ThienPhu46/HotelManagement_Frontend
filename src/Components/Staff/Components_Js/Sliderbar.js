@@ -83,30 +83,29 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, onLogoutClick }) => {
           />
         </div>
         <p>{currentUserName || 'Administrator'}</p>
-      </div>
-      <ul className="sidebar-menu">
+      </div>      <ul className="sidebar-menu">
         <li>
-          <Link to="/Dashboard">
+          <Link to="/Staff/Dashboard">
             <span className="menu-icon"><img src="/icon_LTW/SB_TrangChu.png" alt="Trang Chủ"></img></span> Trang Chủ
           </Link>
         </li>
         <li>
-          <Link to="/RoomAdmin">
+          <Link to="/Staff/RoomStaff">
             <span className="menu-icon"><img src="/icon_LTW/SB_Phong.png" alt="Phòng"></img></span> Phòng
           </Link>
         </li>
         <li>
-          <Link to="/BookingRoom">
+          <Link to="/Staff/BookingRoom">
             <span className="menu-icon"><img src="/icon_LTW/SB_DatPhong.png" alt="Đặt Phòng"></img></span> Đặt Phòng
           </Link>
         </li>
         <li>
-          <Link to="/BillAdmin">
+          <Link to="/Staff/BillStaff">
             <span className="menu-icon"><img src="/icon_LTW/SB_HoaDon.png" alt="Hóa Đơn"></img></span> Hóa Đơn
           </Link>
         </li>
         <li>
-          <Link to="/CustomerManager">
+          <Link to="/Staff/CustomerManager">
             <span className="menu-icon"><img src="/icon_LTW/SB_QLKH.png" alt="QL Khách Hàng"></img></span> QL Khách Hàng
           </Link>
         </li>
