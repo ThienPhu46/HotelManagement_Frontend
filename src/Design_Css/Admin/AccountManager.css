@@ -264,6 +264,21 @@
   background-color: #357abd;
 }
 
+.am-activate-btn {
+  background-color: #28a745;
+  color: white;
+  padding: 0.5rem 2rem;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.am-activate-btn:hover {
+  background-color: #218838;
+}
+
 .am-cancel-btn {
   background-color: #999;
   color: white;
@@ -339,8 +354,8 @@
     gap: 0.5rem;
     margin-top: 1rem;
   }
-
   .am-save-btn,
+  .am-activate-btn,
   .am-cancel-btn {
     padding: 0.3rem 1.5rem;
     font-size: 0.8rem;
@@ -399,8 +414,8 @@
     gap: 0.3rem;
     margin-top: 0.5rem;
   }
-
   .am-save-btn,
+  .am-activate-btn,
   .am-cancel-btn {
     padding: 0.2rem 1rem;
     font-size: 0.7rem;

@@ -26,7 +26,7 @@ const AccountManagement = () => {
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize] = useState(10);
+  const [pageSize] = useState(100);
   const [errorMessage, setErrorMessage] = useState('');
   
   // States for password change functionality
@@ -36,14 +36,19 @@ const AccountManagement = () => {
     newPassword: '',
     confirmPassword: ''
   });
-  const [showPasswordChangeSuccess, setShowPasswordChangeSuccess] = useState(false);
-  const [showPasswordChangeError, setShowPasswordChangeError] = useState(false);
+  const [showPasswordChangeSuccess, setShowPasswordChangeSuccess] = useState(false);  const [showPasswordChangeError, setShowPasswordChangeError] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState('');
   const [showPasswordFields, setShowPasswordFields] = useState({
     oldPassword: false,
     newPassword: false,
     confirmPassword: false
   });
+  
+  // States for account activation functionality
+  const [showActivateConfirm, setShowActivateConfirm] = useState(false);
+  const [showActivateSuccess, setShowActivateSuccess] = useState(false);
+  const [showActivateError, setShowActivateError] = useState(false);
+  const [activateErrorMessage, setActivateErrorMessage] = useState('');
   const API_BASE_URL = 'https://localhost:7087/api/accounts';
 
   const togglePasswordVisibility = (field) => {
@@ -346,8 +351,51 @@ const AccountManagement = () => {
       }
       
       console.log('❌ Password change failed:', errorMessage);
-      setPasswordChangeError(errorMessage);
-      setShowPasswordChangeError(true);
+      setPasswordChangeError(errorMessage);      setShowPasswordChangeError(true);
+    }
+  };
+  const handleActivateAccount = async () => {
+    if (!selectedAccount) {
+      setActivateErrorMessage('Không có tài khoản được chọn');
+      setShowActivateError(true);
+      return;
+    }
+
+    if (!selectedAccount.email) {
+      setActivateErrorMessage('Không tìm thấy email của tài khoản');
+      setShowActivateError(true);
+      return;
+    }
+
+    try {
+      console.log('Đang kích hoạt tài khoản với email:', selectedAccount.email);
+      const response = await axios.post(`${API_BASE_URL}/activate`, {
+        email: selectedAccount.email
+      });
+
+      if (response.data.success) {
+        setShowActivateConfirm(false);
+        setShowActivateSuccess(true);
+        setShowDetailsModal(false);
+        fetchAccounts(); // Refresh the accounts list
+      } else {
+        setActivateErrorMessage(response.data.message || 'Có lỗi xảy ra khi kích hoạt tài khoản');
+        setShowActivateConfirm(false);
+        setShowActivateError(true);
+      }
+    } catch (error) {
+      console.error('Lỗi khi kích hoạt tài khoản:', error);
+      let errorMessage = 'Có lỗi xảy ra khi kích hoạt tài khoản';
+      
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setActivateErrorMessage(errorMessage);
+      setShowActivateConfirm(false);
+      setShowActivateError(true);
     }
   };
 
@@ -584,15 +632,21 @@ const AccountManagement = () => {
                   </select>
                 </div>
               </div>
-            </div>
-            <div className="am-modal-actions">
+            </div>            <div className="am-modal-actions">
               <button className="am-save-btn" onClick={() => {
                 if (selectedAccount) {
                   handleUpdateAccount();
                 } else {
                   handleAddAccount();
                 }
-              }}>Lưu</button>
+              }}>Lưu</button>              {selectedAccount && (
+                <button 
+                  className="am-activate-btn" 
+                  onClick={() => setShowActivateConfirm(true)}
+                >
+                  Kích hoạt
+                </button>
+              )}
               <button className="am-cancel-btn" onClick={() => {
                 setShowDetailsModal(false);
                 setSelectedAccount(null);
@@ -853,6 +907,62 @@ const AccountManagement = () => {
               <button className="confirm-button" onClick={() => {
                 setShowPasswordChangeError(false);
                 setPasswordChangeError('');
+              }}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>      )}
+
+      {showActivateConfirm && selectedAccount && (
+        <div className="logout-modal">
+          <div className="logout-modal-content">
+            <span className="close-icon" onClick={() => setShowActivateConfirm(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
+            <div className="logout-modal-header">
+              <span className="header-text">Thông Báo</span>
+            </div>
+            <p className="logout-message">Bạn có muốn kích hoạt tài khoản với email {selectedAccount.email}?</p>
+            <div className="logout-modal-buttons">
+              <button className="confirm-button" onClick={handleActivateAccount}>
+                YES
+              </button>
+              <button className="cancel-button" onClick={() => setShowActivateConfirm(false)}>
+                NO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showActivateSuccess && (
+        <div className="logout-modal">
+          <div className="logout-modal-content">
+            <span className="close-icon" onClick={() => setShowActivateSuccess(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
+            <div className="logout-modal-header">
+              <span className="header-text">Thông Báo</span>
+            </div>
+            <p className="logout-message">Kích hoạt tài khoản thành công!</p>
+            <div className="logout-modal-buttons">
+              <button className="confirm-button" onClick={() => setShowActivateSuccess(false)}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showActivateError && (
+        <div className="logout-modal">
+          <div className="logout-modal-content">
+            <span className="close-icon" onClick={() => setShowActivateError(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
+            <div className="logout-modal-header">
+              <span className="header-text">Thông Báo</span>
+            </div>
+            <p className="logout-message">{activateErrorMessage}</p>
+            <div className="logout-modal-buttons">
+              <button className="confirm-button" onClick={() => {
+                setShowActivateError(false);
+                setActivateErrorMessage('');
               }}>
                 OK
               </button>
