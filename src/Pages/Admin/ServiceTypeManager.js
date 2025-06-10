@@ -24,8 +24,7 @@ const ServiceTypeManagement = () => {
   const [serviceTypeToDelete, setServiceTypeToDelete] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const API_BASE_URL = 'https://localhost:7087';
-
+const API_BASE_URL = process.env.REACT_APP_API_URL;
   const fetchServiceTypes = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/service-types?pageNumber=1&pageSize=100`);

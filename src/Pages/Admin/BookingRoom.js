@@ -35,7 +35,7 @@ const BookingList = () => {
     gioKetThuc: ''
   });
 
-  const API_BASE_URL = 'https://localhost:7087/api';
+const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
 
   // Hàm định dạng thời gian theo UTC+7
   const formatDateToISOWithOffset = (date) => {

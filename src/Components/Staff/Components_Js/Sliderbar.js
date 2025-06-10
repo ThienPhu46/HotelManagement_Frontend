@@ -6,8 +6,7 @@ import { Link } from "react-router-dom";
 const Sidebar = ({ isSidebarOpen, toggleSidebar, onLogoutClick }) => {
   const [currentUserName, setCurrentUserName] = useState('');
   const [currentAvatar, setCurrentAvatar] = useState('/icon_LTW/Admin.jpg');
-  const API_BASE_URL = 'https://localhost:7087/api';
-  // Hàm lấy thông tin người dùng hiện tại
+const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;  // Hàm lấy thông tin người dùng hiện tại
   const fetchCurrentUser = useCallback(async () => {
     try {
       const username = localStorage.getItem('username');

@@ -12,8 +12,7 @@ const PointHistoryManagement = () => {
   const [pointHistory, setPointHistory] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const API_BASE_URL = 'https://localhost:7087';
-
+const API_BASE_URL = process.env.REACT_APP_API_URL;
   const fetchAllPointHistory = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage('');

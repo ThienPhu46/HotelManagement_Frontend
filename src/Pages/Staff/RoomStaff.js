@@ -37,9 +37,7 @@ const Room = () => {
   const [pointError, setPointError] = useState('');
   const [finalPoint, setFinalPoint] = useState(0);
 
-  const API_BASE_URL = 'https://localhost:7087/api';
-
-  // Helper function để tạo timestamp cho múi giờ Việt Nam
+const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;  // Helper function để tạo timestamp cho múi giờ Việt Nam
   const getVietnamTimestamp = () => {
     const now = new Date();
     // Tạo timestamp với offset UTC+7 cho múi giờ Việt Nam

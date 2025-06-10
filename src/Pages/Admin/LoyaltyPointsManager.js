@@ -26,8 +26,7 @@ const PointProgramManagement = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showDuplicateError, setShowDuplicateError] = useState(false);
 
-  const API_BASE_URL = 'https://localhost:7087';
-
+const API_BASE_URL = process.env.REACT_APP_API_URL;
   const fetchPointPrograms = useCallback(async () => {
     try {
       const response = await fetch(

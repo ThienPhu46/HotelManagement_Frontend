@@ -26,8 +26,7 @@ const RoomTypeManagement = () => {
   const [showApiErrorModal, setShowApiErrorModal] = useState(false);
   const [apiErrorMessage, setApiErrorMessage] = useState('');
 
-  const API_BASE_URL = 'https://localhost:7087';
-
+const API_BASE_URL = process.env.REACT_APP_API_URL;
   const fetchRoomTypes = useCallback(async () => {
     try {
       const response = await fetch(

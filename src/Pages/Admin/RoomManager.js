@@ -28,8 +28,7 @@ const RoomManagement = () => {
   const [roomTypes, setRoomTypes] = useState([]);
   const [error, setError] = useState(null);
 
-  const API_BASE_URL = 'https://localhost:7087/api';
-
+const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
   const fetchRooms = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
