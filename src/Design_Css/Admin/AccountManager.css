@@ -294,6 +294,51 @@
   background-color: #777;
 }
 
+/* Pagination styles */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 1.5rem 0 0.5rem 0;
+}
+.pagination-btn {
+  background: #1D3E92;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+.pagination-btn:disabled {
+  background: #bdbdbd;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.pagination-info {
+  font-size: 1.1rem;
+  color: #1D3E92;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+@media (max-width: 600px) {
+  .pagination-container {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .pagination-btn {
+    width: 100%;
+    font-size: 0.95rem;
+  }
+  .pagination-info {
+    font-size: 1rem;
+  }
+}
+
 @media (max-width: 768px) {
   .am-content-wrapper {
     width: 95%;
@@ -360,6 +405,18 @@
     padding: 0.3rem 1.5rem;
     font-size: 0.8rem;
   }
+  .pagination-container {
+    gap: 0.5rem;
+    margin: 1rem 0 0.3rem 0;
+  }
+  .pagination-btn {
+    font-size: 0.95rem;
+    padding: 0.4rem 0.8rem;
+  }
+  .pagination-info {
+    font-size: 0.95rem;
+    min-width: 70px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -419,6 +476,18 @@
   .am-cancel-btn {
     padding: 0.2rem 1rem;
     font-size: 0.7rem;
+  }
+  .pagination-container {
+    gap: 0.3rem;
+    margin: 0.7rem 0 0.2rem 0;
+  }
+  .pagination-btn {
+    font-size: 0.85rem;
+    padding: 0.3rem 0.6rem;
+  }
+  .pagination-info {
+    font-size: 0.85rem;
+    min-width: 55px;
   }
 }
 

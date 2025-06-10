@@ -35,7 +35,10 @@ const BookingList = () => {
     gioKetThuc: ''
   });
 
-const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
 
   // Hàm định dạng thời gian theo UTC+7
   const formatDateToISOWithOffset = (date) => {
@@ -178,9 +181,12 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
     }
   };
 
+  // Phân trang cho danh sách booking
   const filteredBookings = bookings.filter((booking) =>
     customers[booking.maKhachHang]?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const totalPages = Math.ceil(filteredBookings.length / pageSize);
+  const paginatedBookings = filteredBookings.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleDetails = async (maDatPhong) => {
     try {
@@ -511,7 +517,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               </tr>
             </thead>
             <tbody>
-              {filteredBookings.map((booking) => (
+              {paginatedBookings.map((booking) => (
                 <tr key={booking.maDatPhong}>
                   <td>{booking.maDatPhong}</td>
                   <td>{customers[booking.maKhachHang] || 'Unknown'}</td>
@@ -529,6 +535,24 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="pagination-container">
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Trang trước
+          </button>
+          <span className="pagination-info">Trang {currentPage} / {totalPages}</span>
+          <button
+            className="pagination-btn"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Trang sau
+          </button>
         </div>
       </div>
 

@@ -37,7 +37,7 @@ const Room = () => {
   const [pointError, setPointError] = useState('');
   const [finalPoint, setFinalPoint] = useState(0);
 
-const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+  const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
   // Helper function để tạo timestamp cho múi giờ Việt Nam
   const getVietnamTimestamp = () => {
     const now = new Date();
@@ -722,7 +722,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
       }
 
       // Fetch all point programs
-      const response = await axios.get('https://localhost:7087/api/point-programs?pageNumber=1&pageSize=100');
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/point-programs?pageNumber=1&pageSize=100`);
       if (response.data.success && Array.isArray(response.data.data)) {
         const pointPrograms = response.data.data;
         console.log('=== DEBUG: All Point Programs ===');
@@ -803,8 +803,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
       let soTienGiam = 0;
       if (selectedRoom?.guestName) {
         // Get customer info from API to get MaCT and tongDiem
-        const customerRes = await axios.get('https://localhost:7087/api/customers', { params: { pageNumber: 1, pageSize: 100 } });
-        if (customerRes.data.success && Array.isArray(customerRes.data.data)) {
+        const customerRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/customers`, { params: { pageNumber: 1, pageSize: 100 } }); if (customerRes.data.success && Array.isArray(customerRes.data.data)) {
           const customer = customerRes.data.data.find(c => c.hoTenKhachHang === selectedRoom.guestName);
           console.log('=== DEBUG: Customer Info ===');
           console.log('Guest Name:', selectedRoom.guestName);
@@ -1590,7 +1589,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
                           try {
                             let mucGiamGia = 0;
                             if (selectedRoom?.guestName) {
-                              const customerRes = await axios.get('https://localhost:7087/api/customers', {
+                              const customerRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/customers`, {
                                 params: { pageNumber: 1, pageSize: 100 }
                               });
                               if (customerRes.data.success && Array.isArray(customerRes.data.data)) {

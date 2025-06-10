@@ -12,7 +12,16 @@ const PointHistoryManagement = () => {
   const [pointHistory, setPointHistory] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(pointHistory.length / pageSize);
+  const paginatedHistory = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    return pointHistory.slice(startIdx, startIdx + pageSize);
+  }, [pointHistory, currentPage]);
+
+  const API_BASE_URL = process.env.REACT_APP_API_URL;
   const fetchAllPointHistory = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage('');
@@ -105,6 +114,10 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
     setShowLogoutConfirm(false);
   };
 
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, dateFilter]);
+
   if (isLoading) {
     return (
       <div className="invoice-list-container">
@@ -188,8 +201,8 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
               </tr>
             </thead>
             <tbody>
-              {filteredHistory.length > 0 ? (
-                filteredHistory.map((record) => (
+              {paginatedHistory.length > 0 ? (
+                paginatedHistory.map((record) => (
                   <tr key={record.id}>
                     <td>{record.id}</td>
                     <td>{record.customerName}</td>
@@ -205,6 +218,26 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
               )}
             </tbody>
           </table>
+        </div>
+        {/* Phân trang */}
+        <div className="pagination-container">
+          <button
+            className="pagination-btn"
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+          >
+            Trang trước
+          </button>
+          <span className="pagination-info">
+            Trang {currentPage} / {totalPages || 1}
+          </span>
+          <button
+            className="pagination-btn"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Trang sau
+          </button>
         </div>
       </div>
     </div>

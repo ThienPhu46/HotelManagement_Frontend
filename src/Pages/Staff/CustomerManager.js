@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import '../../Design_Css/Staff/CustomerManager.css';
+import '../../Design_Css/Admin/CustomerManager.css';
 import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
 import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
 import axios from 'axios';
@@ -26,7 +26,19 @@ const CustomerManagement = () => {
   const [showDuplicateError, setShowDuplicateError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(customers.length / pageSize);
+  const paginatedCustomers = React.useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    return customers.slice(startIdx, startIdx + pageSize);
+  }, [customers, currentPage]);
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  
+  const API_BASE_URL = process.env.REACT_APP_API_URL;
+
   const fetchPointPrograms = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -96,6 +108,10 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -339,8 +355,8 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
               </tr>
             </thead>
             <tbody>
-              {customers.length > 0 ? (
-                customers.map((customer) => (
+              {paginatedCustomers.length > 0 ? (
+                paginatedCustomers.map((customer) => (
                   <tr key={customer.maKhachHang}>
                     <td>{customer.maKhachHang}</td>
                     <td>{customer.hoTenKhachHang}</td>
@@ -363,6 +379,26 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
               )}
             </tbody>
           </table>
+        </div>
+        {/* Phân trang */}
+        <div className="pagination-container">
+          <button
+            className="pagination-btn"
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+          >
+            Trang trước
+          </button>
+          <span className="pagination-info">
+            Trang {currentPage} / {totalPages || 1}
+          </span>
+          <button
+            className="pagination-btn"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Trang sau
+          </button>
         </div>
       </div>
 

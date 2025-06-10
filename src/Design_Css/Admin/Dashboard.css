@@ -20,7 +20,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 40px;
-  background-color: #fff;
+  background-color: #ededed;
   width: 100%;
   box-sizing: border-box;
   position: sticky;
@@ -38,7 +38,6 @@
   font-size: 30px;
   font-weight: 600;
   color: #000;
-  margin-left: 50px;
   margin-top: 10px;
 }
 

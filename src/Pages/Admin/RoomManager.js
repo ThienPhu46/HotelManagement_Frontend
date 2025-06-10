@@ -28,7 +28,19 @@ const RoomManagement = () => {
   const [roomTypes, setRoomTypes] = useState([]);
   const [error, setError] = useState(null);
 
-const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(rooms.length / pageSize);
+  const paginatedRooms = React.useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    return rooms.slice(startIdx, startIdx + pageSize);
+  }, [rooms, currentPage]);
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
+  const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
   const fetchRooms = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -391,14 +403,14 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               </tr>
             </thead>
             <tbody>
-              {rooms.length === 0 && !error ? (
+              {paginatedRooms.length === 0 && !error ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center' }}>
                     Không có dữ liệu để hiển thị.
                   </td>
                 </tr>
               ) : (
-                rooms.map((room) => (
+                paginatedRooms.map((room) => (
                   <tr key={room.MaPhong}>
                     <td>{room.SoPhong}</td>
                     <td>{room.TinhTrang}</td>
@@ -423,6 +435,26 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               )}
             </tbody>
           </table>
+        </div>
+        {/* Phân trang */}
+        <div className="pagination-container">
+          <button
+            className="pagination-btn"
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+          >
+            Trang trước
+          </button>
+          <span className="pagination-info">
+            Trang {currentPage} / {totalPages || 1}
+          </span>
+          <button
+            className="pagination-btn"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Trang sau
+          </button>
         </div>
       </div>
 

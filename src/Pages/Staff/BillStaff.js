@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import debounce from 'lodash/debounce';
-import '../../Design_Css/Staff/BillStaff.css';
+import '../../Design_Css/Admin/BillAdmin.css';
 import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
 import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
 
@@ -198,6 +198,18 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
            recordDate.getDate() === filterDate.getDate();
   }), [invoices, searchTerm, selectedDate]);
 
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(filteredInvoices.length / pageSize);
+  const paginatedInvoices = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    return filteredInvoices.slice(startIdx, startIdx + pageSize);
+  }, [filteredInvoices, currentPage]);
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedDate]);
+
   const handleDetails = (id) => {
     const invoice = invoices.find((inv) => inv.id === id);
     setSelectedInvoice(invoice);
@@ -301,7 +313,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               </tr>
             </thead>
             <tbody>
-              {filteredInvoices.map((invoice) => (<tr key={invoice.id}>
+              {paginatedInvoices.map((invoice) => (<tr key={invoice.id}>
                   <td>{invoice.id}</td>
                   <td>
                     <div className="payment-status-cell">
@@ -327,6 +339,26 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               ))}
             </tbody>
           </table>
+        </div>
+        {/* Phân trang */}
+        <div className="pagination-container">
+          <button
+            className="pagination-btn"
+            onClick={handlePrevPage}
+            disabled={currentPage === 1}
+          >
+            Trang trước
+          </button>
+          <span className="pagination-info">
+            Trang {currentPage} / {totalPages || 1}
+          </span>
+          <button
+            className="pagination-btn"
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            Trang sau
+          </button>
         </div>
       </div>
 

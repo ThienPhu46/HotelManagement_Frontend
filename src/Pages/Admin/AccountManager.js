@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import '../../Design_Css/Admin/AccountManager.css';
+import './../../../src/Design_Css/Admin/AccountManager.css';
 import Sidebar from '../../Components/Admin/Components_Js/Sliderbar';
 import LogoutModal from '../../Components/Admin/Components_Js/LogoutModal';
 
@@ -25,8 +25,9 @@ const AccountManagement = () => {
   const [showInputError, setShowInputError] = useState(false);  const [showDuplicateError, setShowDuplicateError] = useState(false); // New state for duplicate error modal
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [accounts, setAccounts] = useState([]);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize] = useState(100);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const [totalPages, setTotalPages] = useState(1);
   const [errorMessage, setErrorMessage] = useState('');
   
   // States for password change functionality
@@ -49,7 +50,8 @@ const AccountManagement = () => {
   const [showActivateSuccess, setShowActivateSuccess] = useState(false);
   const [showActivateError, setShowActivateError] = useState(false);
   const [activateErrorMessage, setActivateErrorMessage] = useState('');
-const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api/accounts`;
+// Thêm state tổng số trang cho phân trang backend
+  const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api/accounts`;
   const togglePasswordVisibility = (field) => {
     setShowPasswordFields(prev => ({
       ...prev,
@@ -57,42 +59,53 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api/accounts`;
     }));
   };
 
-  const fetchAccounts = useCallback(async () => {
-    try {
-      console.log('Đang gọi API lấy danh sách tài khoản với params:', { pageNumber, pageSize, searchTerm });
-      const response = await axios.get(API_BASE_URL, {
-        params: {
-          pageNumber,
-          pageSize,
-          searchTerm: searchTerm || null,
-          sortBy: 'MaTaiKhoan',
-          sortOrder: 'ASC'
-        }
-      });
-      console.log('Phản hồi từ API:', response.data);
+  // Sắp xếp theo mã tài khoản giảm dần (lớn nhất đầu tiên)
+const fetchAccounts = useCallback(async () => {
+  try {
+    console.log('Đang gọi API lấy danh sách tài khoản với params:', { currentPage, pageSize, searchTerm });
+    const response = await axios.get(API_BASE_URL, {
+      params: {
+        pageNumber: currentPage,
+        pageSize,
+        searchTerm: searchTerm || null,
+        sortBy: 'MaTaiKhoan',
+        sortOrder: 'DESC' // Sắp xếp giảm dần
+      }
+    });
+    console.log('Phản hồi từ API:', response.data);
 
-      if (response.data.success) {
-        setAccounts(response.data.data || []);
-        setErrorMessage('');
+    if (response.data.success) {
+      setAccounts(response.data.data || []);
+      setErrorMessage('');
+      // Nếu backend trả về tổng số trang, lưu lại để hiển thị
+      if (typeof response.data.totalPages === 'number' && response.data.totalPages > 0) {
+        setTotalPages(response.data.totalPages);
+      } else if (typeof response.data.totalCount === 'number') {
+        // Nếu backend chỉ trả về tổng số bản ghi, tự tính số trang
+        setTotalPages(Math.ceil(response.data.totalCount / pageSize));
       } else {
-        setErrorMessage(`Lỗi từ backend: ${response.data.message}`);
-        setAccounts([]);
+        // Fallback: tự tính nếu có thể
+        setTotalPages(1);
       }
-    } catch (error) {
-      console.error('Lỗi chi tiết khi gọi API:', error);
-      if (error.response) {
-        setErrorMessage(`Lỗi từ server: ${error.response.status} - ${error.response.data.message || error.message}`);
-        if (error.response.status === 400) {
-          setErrorMessage('Yêu cầu không hợp lệ. Kiểm tra tham số hoặc cấu hình backend.');
-        }
-      } else if (error.request) {
-        setErrorMessage('Không thể kết nối đến server. Vui lòng kiểm tra backend hoặc CORS.');
-      } else {
-        setErrorMessage(`Lỗi: ${error.message}`);
-      }
+    } else {
+      setErrorMessage(`Lỗi từ backend: ${response.data.message}`);
       setAccounts([]);
     }
-  }, [pageNumber, pageSize, searchTerm]);
+  } catch (error) {
+    console.error('Lỗi chi tiết khi gọi API:', error);
+    if (error.response) {
+      setErrorMessage(`Lỗi từ server: ${error.response.status} - ${error.response.data.message || error.message}`);
+      if (error.response.status === 400) {
+        setErrorMessage('Yêu cầu không hợp lệ. Kiểm tra tham số hoặc cấu hình backend.');
+      }
+    } else if (error.request) {
+      setErrorMessage('Không thể kết nối đến server. Vui lòng kiểm tra backend hoặc CORS.');
+    } else {
+      setErrorMessage(`Lỗi: ${error.message}`);
+    }
+    setAccounts([]);
+  }
+}, [currentPage, pageSize, searchTerm]);
 
   const checkDuplicateAccount = async (username, email) => {
     try {
@@ -124,13 +137,17 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api/accounts`;
     fetchAccounts();
   }, [fetchAccounts]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    setPageNumber(1);
+    setCurrentPage(1);
   };
 
   const handleConfirmLogout = () => {
@@ -398,6 +415,9 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api/accounts`;
     }
   };
 
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+
   return (
     <div className="am-main-container">
       <Sidebar
@@ -517,6 +537,26 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api/accounts`;
             </tbody>
           </table>
         </div>
+        {/* Pagination controls giống PointHistoryManager */}
+        <div className="am-pagination-container pagination-container">
+  <button
+    className="am-pagination-btn pagination-btn"
+    onClick={handlePrevPage}
+    disabled={currentPage === 1}
+  >
+    Trang trước
+  </button>
+  <span className="am-pagination-info pagination-info">
+    Trang {currentPage} / {totalPages || 1}
+  </span>
+  <button
+    className="am-pagination-btn pagination-btn"
+    onClick={handleNextPage}
+    disabled={currentPage === totalPages || totalPages === 0}
+  >
+    Trang sau
+  </button>
+</div>
       </div>
 
       {showDetailsModal && (
@@ -824,7 +864,8 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api/accounts`;
                         alt="Toggle Password Visibility"
                         style={{ width: '20px', height: '20px' }}
                       />
-                    </button>                  </div>
+                    </button>
+                  </div>
                 </div>
                 <div className="am-form-field">
                   <span className="am-field-icon"><img src="/icon_LTW/GridiconsLock (1).png" alt="#" /></span>
