@@ -14,6 +14,7 @@ const CustomerManagement = () => {
     email: '',
     dienThoai: '',
     maCT: '1',
+    tenCT: 'Thanh Vien Vang',
     tongDiem: 0,
   });
   const [customers, setCustomers] = useState([]);
@@ -34,7 +35,8 @@ const CustomerManagement = () => {
       
       const response = await axios.get(`${API_BASE_URL}/api/point-programs?pageNumber=1&pageSize=100`, { headers });
       if (response.data.success) {
-        setPointPrograms(response.data.data || []);      } else {
+        setPointPrograms(response.data.data || []);      
+      } else {
         throw new Error(response.data.message || 'Không thể tải danh sách chương trình điểm');
       }
     } catch (error) {
@@ -48,41 +50,44 @@ const CustomerManagement = () => {
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
       
       const response = await axios.get(
-        `${API_BASE_URL}/api/customers?searchTerm=${searchTerm}&sortBy=MaKhachHang&sortOrder=ASC`,
+        `${API_BASE_URL}/api/customers?searchTerm=${searchTerm}&sortBy=MaKhachHang&sortOrder=ASC&pageNumber=1&pageSize=100`,
         { headers }
       );
       if (response.data.success) {
-        const validatedData = (response.data.data || []).map((customer, index) => ({
-          maKhachHang: customer.maKhachHang || `TEMP_${index}`,
-          hoTenKhachHang: customer.hoTenKhachHang || 'N/A',
-          dienThoai: customer.dienThoai || 'N/A',
-          email: customer.email || '',
-          maCT: customer.maCT || '1',
-          tenCT: customer.tenCT || (pointPrograms.find(p => p.maCT === '1')?.tenCT || 'N/A'),
-          tongDiem: customer.tongDiem !== undefined ? customer.tongDiem : 0,
-        }));
+        const validatedData = (response.data.data || []).map((customer, index) => {
+          const program = pointPrograms.find(p => p.maCT === customer.maCT) || 
+                         pointPrograms.reduce((prev, curr) => 
+                           customer.tongDiem >= curr.diemToiThieu ? curr : prev, 
+                           pointPrograms[0] || { maCT: '1', tenCT: 'Thanh Vien Vang', diemToiThieu: 0 });
+          return {
+            maKhachHang: customer.maKhachHang || `TEMP_${index}`,
+            hoTenKhachHang: customer.hoTenKhachHang || 'N/A',
+            dienThoai: customer.dienThoai || 'N/A',
+            email: customer.email || '',
+            maCT: program.maCT,
+            tenCT: program.tenCT,
+            tongDiem: customer.tongDiem !== undefined ? customer.tongDiem : 0,
+          };
+        });
         setCustomers(validatedData);
-        setErrorMessage('');      } else {
+        setErrorMessage('');      
+      } else {
         throw new Error(response.data.message || 'Không thể tải danh sách khách hàng');
       }
     } catch (error) {
       setErrorMessage(error.message);
       setCustomers([]);
-    }}, [searchTerm, pointPrograms]);
-    const checkDuplicateCustomer = async (email, phone) => {
+    }
+  }, [searchTerm, pointPrograms]);
+
+  const checkDuplicateCustomer = async (email, phone) => {
     const token = localStorage.getItem('token');
     
-    // Skip duplicate checking entirely to avoid 400/500 errors
-    // This is a temporary fix until the backend validation endpoints are working properly
-    // TODO: Re-enable validation when backend endpoints are fixed
     if (!token) {
       console.warn('No token available for duplicate validation');
     }
     
-    return { 
-      isDuplicate: false, 
-      message: ''
-    };
+    return { isDuplicate: false, message: '' };
   };
 
   useEffect(() => {
@@ -107,6 +112,8 @@ const CustomerManagement = () => {
       hoTenKhachHang: customer.hoTenKhachHang,
       email: customer.email,
       dienThoai: customer.dienThoai,
+      maCT: customer.maCT,
+      tenCT: customer.tenCT,
       tongDiem: customer.tongDiem,
     });
     setShowDetailsModal(true);
@@ -118,6 +125,7 @@ const CustomerManagement = () => {
       email: '',
       dienThoai: '',
       maCT: '1',
+      tenCT: 'Thanh Vien Vang',
       tongDiem: 0,
     });
     setSelectedCustomer(null);
@@ -129,20 +137,25 @@ const CustomerManagement = () => {
     if (!customerData.email.trim()) return 'Vui lòng nhập email.';
     if (!customerData.dienThoai.trim()) return 'Vui lòng nhập số điện thoại.';
     
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(customerData.email)) {
       return 'Email không đúng định dạng.';
     }
     
-    // Validate phone number (Vietnamese format: 10 digits starting with 0)
     const phoneRegex = /^0\d{9}$/;
     if (!phoneRegex.test(customerData.dienThoai)) {
       return 'Số điện thoại phải có 10 chữ số và bắt đầu bằng số 0.';
     }
-    
+
     return null;
   };
+
+  const determineProgram = (tongDiem) => {
+    return pointPrograms.reduce((prev, curr) => 
+      tongDiem >= curr.diemToiThieu ? curr : prev, 
+      pointPrograms[0] || { maCT: '1', tenCT: 'Thanh Vien Vang', diemToiThieu: 0 });
+  };
+
   const handleSave = async () => {
     const customerData = selectedCustomer || newCustomer;
     
@@ -154,7 +167,8 @@ const CustomerManagement = () => {
     }
     
     const duplicateResult = await checkDuplicateCustomer(customerData.email, customerData.dienThoai);
-    const { isDuplicate, message } = duplicateResult;    if (isDuplicate) {
+    const { isDuplicate, message } = duplicateResult;
+    if (isDuplicate) {
       setErrorMessage(message);
       setShowDuplicateError(true);
       return;
@@ -163,18 +177,28 @@ const CustomerManagement = () => {
     try {
       const url = selectedCustomer
         ? `${API_BASE_URL}/api/customers/${selectedCustomer.maKhachHang}`
-        : `${API_BASE_URL}/api/customers`;      const method = selectedCustomer ? 'PUT' : 'POST';
+        : `${API_BASE_URL}/api/customers`;
+      const method = selectedCustomer ? 'PUT' : 'POST';
+
+      const program = determineProgram(customerData.tongDiem);
+      const tenCT = program.tenCT;
+      const maCT = String(program.maCT); // Đảm bảo MaCT là string
 
       const body = {
-        hoTenKhachHang: customerData.hoTenKhachHang.trim(),
-        email: customerData.email.trim(),
-        dienThoai: customerData.dienThoai.trim(),
-        maCT: '1', // Default program ID
-        tongDiem: parseInt(customerData.tongDiem || 0, 10),
-      };      // Only include maKhachHang for PUT requests
-      if (selectedCustomer && method === 'PUT') {
-        body.maKhachHang = selectedCustomer.maKhachHang;
-      }      const token = localStorage.getItem('token');
+        MaKhachHang: selectedCustomer ? selectedCustomer.maKhachHang : undefined,
+        HoTenKhachHang: customerData.hoTenKhachHang.trim(),
+        Email: customerData.email.trim(),
+        DienThoai: customerData.dienThoai.trim(),
+        MaCT: maCT, // luôn là string
+        TenCT: tenCT,
+        // Không gửi TongDiem nếu backend không cho phép chỉnh sửa
+      };
+
+      if (selectedCustomer) {
+        body.MaKhachHang = selectedCustomer.maKhachHang;
+      }
+
+      const token = localStorage.getItem('token');
 
       const requestConfig = {
         method: method,
@@ -184,8 +208,12 @@ const CustomerManagement = () => {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        timeout: 30000, // 30 second timeout
-      };      const response = await axios(requestConfig);
+        timeout: 30000,
+      };
+
+      console.log('Request Config:', requestConfig);
+
+      const response = await axios(requestConfig);
       
       if (response.data && (response.data.success === true || response.status === 200 || response.status === 201)) {
         setShowDetailsModal(false);
@@ -195,15 +223,17 @@ const CustomerManagement = () => {
         await fetchCustomers();
       } else {
         throw new Error(response.data?.message || (selectedCustomer ? 'Cập nhật khách hàng thất bại' : 'Thêm khách hàng thất bại'));
-      }    } catch (error) {
+      }
+    } catch (error) {
       let errorMessage = 'Có lỗi khi lưu khách hàng';
       
-      if (error.response) {        const status = error.response.status;
+      if (error.response) {
+        const status = error.response.status;
         const data = error.response.data;
         
         switch (status) {
           case 400:
-            errorMessage = `Dữ liệu không hợp lệ: ${data?.message || data || 'Vui lòng kiểm tra thông tin nhập vào'}`;
+            errorMessage = `Dữ liệu không hợp lệ: ${data?.message || JSON.stringify(data) || 'Vui lòng kiểm tra thông tin nhập vào'}`;
             break;
           case 401:
             errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
@@ -230,6 +260,7 @@ const CustomerManagement = () => {
       
       setErrorMessage(errorMessage);
       setShowInputError(true);
+      console.log('Error Details:', error.response ? error.response.data : error);
     }
   };
 
@@ -241,6 +272,7 @@ const CustomerManagement = () => {
       email: '',
       dienThoai: '',
       maCT: '1',
+      tenCT: 'Thanh Vien Vang',
       tongDiem: 0,
     });
   };
@@ -248,6 +280,7 @@ const CustomerManagement = () => {
   const handleCancelLogout = () => {
     setShowLogoutConfirm(false);
   };
+
   const handleConfirmLogout = () => {
     setShowLogoutConfirm(false);
     window.location.href = '/';
@@ -380,7 +413,6 @@ const CustomerManagement = () => {
                       placeholder="Số điện thoại"
                       value={selectedCustomer ? selectedCustomer.dienThoai : newCustomer.dienThoai}
                       onChange={(e) => {
-                        // Only allow digits and limit to 10 characters
                         const value = e.target.value.replace(/\D/g, '').slice(0, 10);
                         if (selectedCustomer) {
                           setSelectedCustomer({ ...selectedCustomer, dienThoai: value });
@@ -396,6 +428,7 @@ const CustomerManagement = () => {
                     </span>
                   </div>
                 </div>
+                {/* Bỏ input tổng điểm ở đây */}
               </div>
             </div>
             <div className="cm-modal-actions">

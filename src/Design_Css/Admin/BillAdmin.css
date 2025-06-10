@@ -32,6 +32,7 @@ html {
 .top-title-container {
     display: flex;
     align-items: center;
+    gap: 1rem;
 }
 
 .top-title {
@@ -163,6 +164,37 @@ html {
     /* Màu nền khi hover */
     transition: background-color 0.2s ease;
     /* Hiệu ứng chuyển màu mượt mà */
+}
+
+/* Payment status cell styles */
+.payment-status-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.payment-status {
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.payment-status.paid {
+    background-color: #28a745;
+    color: white;
+}
+
+.payment-status.unpaid {
+    background-color: #dc3545;
+    color: white;
+}
+
+.payment-date {
+    font-size: 0.85rem;
+    color: #2b2b2b;
 }
 
 .details-button {
@@ -450,6 +482,114 @@ html {
 .confirm-button:hover,
 .cancel-button:hover {
     background-color: #357abd;
+}
+
+.top-title-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.last-updated {
+    font-size: 0.8rem;
+    color: #666;
+    margin-left: 1rem;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.refresh-button {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #1D3E92;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.refresh-button:hover {
+    background-color: #f0f0f0;
+}
+
+.refresh-button.refreshing {
+    animation: spin 1s linear infinite;
+    opacity: 0.7;
+}
+
+.refresh-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Notification styles */
+.new-invoice-notification {
+    position: fixed;
+    top: 5rem;
+    right: 2rem;
+    z-index: 1000;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.notification-content {
+    background: linear-gradient(135deg, #1D3E92, #2a5bb8);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 250px;
+}
+
+.notification-icon {
+    font-size: 1.2rem;
+}
+
+.notification-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.notification-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 @media (max-width: 768px) {

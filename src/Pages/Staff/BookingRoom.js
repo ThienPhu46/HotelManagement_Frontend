@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import '../../Design_Css/Admin/BookingRoom.css';
-import Sidebar from '../../Components/Admin/Components_Js/Sliderbar';
-import LogoutModal from '../../Components/Admin/Components_Js/LogoutModal';
+import '../../Design_Css/Staff/BookingRoom.css';
+import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
+import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
 import axios from 'axios';
 
 const BookingList = () => {

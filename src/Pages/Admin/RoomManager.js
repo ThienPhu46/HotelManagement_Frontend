@@ -32,23 +32,28 @@ const RoomManagement = () => {
 
   const fetchRooms = useCallback(async () => {
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const response = await axios.get(`${API_BASE_URL}/rooms`, {
-        params: { searchTerm, sortBy: 'MaPhong', sortOrder: 'ASC' },
+        params: { searchTerm, sortBy: 'MaPhong', sortOrder: 'ASC', pageNumber: 1, pageSize: 100 },
+        headers,
       });
+
       if (response.data.success) {
         if (Array.isArray(response.data.data)) {
           const mappedRooms = response.data.data.map(room => ({
-            MaPhong: room.maPhong,
-            SoPhong: room.soPhong || '',
+            MaPhong: room.maPhong || `TEMP_${Math.random().toString(36).substr(2, 9)}`,
+            SoPhong: room.soPhong || 'N/A',
             GiaPhong: room.giaPhong || 0,
-            TrangThai: room.trangThai || '',
+            TrangThai: room.trangThai || 'N/A',
             LoaiPhong: String(room.loaiPhong) || '',
-            TinhTrang: room.tinhTrang || '',
+            TinhTrang: room.tinhTrang || 'N/A',
           }));
           setRooms(mappedRooms);
           setError(null);
         } else {
-          setError('Dữ liệu phòng không đúng định dạng.');
+          setError('Dữ liệu phòng không đúng định dạng, không phải mảng.');
           setRooms([]);
         }
       } else {
@@ -56,18 +61,26 @@ const RoomManagement = () => {
         setRooms([]);
       }
     } catch (error) {
-      setError(`Lỗi khi lấy danh sách phòng: ${error.message}`);
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi không xác định khi lấy danh sách phòng.';
+      setError(`Lỗi khi lấy danh sách phòng: ${errorMessage}`);
       setRooms([]);
+      console.error('Fetch rooms error:', error);
     }
   }, [searchTerm]);
 
   const fetchRoomTypes = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/room-types`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.get(`${API_BASE_URL}/room-types?pageNumber=1&pageSize=100`, {
+        headers,
+      });
+
       if (response.data.success) {
         if (Array.isArray(response.data.data)) {
           const mappedRoomTypes = response.data.data.map(type => ({
-            MaLoaiPhong: type.maLoaiPhong,
+            MaLoaiPhong: type.maLoaiPhong || `TEMP_${Math.random().toString(36).substr(2, 9)}`,
             TenLoaiPhong: type.tenLoaiPhong || 'Không xác định',
             GiaPhong: type.giaPhong || 0,
             MoTa: type.moTa || '',
@@ -75,7 +88,7 @@ const RoomManagement = () => {
           setRoomTypes(mappedRoomTypes);
           setError(null);
         } else {
-          setError('Dữ liệu loại phòng không đúng định dạng.');
+          setError('Dữ liệu loại phòng không đúng định dạng, không phải mảng.');
           setRoomTypes([]);
         }
       } else {
@@ -83,8 +96,10 @@ const RoomManagement = () => {
         setRoomTypes([]);
       }
     } catch (error) {
-      setError(`Lỗi khi lấy danh sách loại phòng: ${error.message}`);
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi không xác định khi lấy danh sách loại phòng.';
+      setError(`Lỗi khi lấy danh sách loại phòng: ${errorMessage}`);
       setRoomTypes([]);
+      console.error('Fetch room types error:', error);
     }
   }, []);
 
@@ -122,11 +137,14 @@ const RoomManagement = () => {
 
   const handleEdit = async (maPhong) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/rooms/${maPhong}`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.get(`${API_BASE_URL}/rooms/${maPhong}`, { headers });
       if (response.data.success && response.data.data) {
         const roomData = response.data.data;
         const room = {
-          MaPhong: parseInt(roomData.maPhong, 10),
+          MaPhong: parseInt(roomData.maPhong, 10) || 0,
           SoPhong: roomData.soPhong || '',
           GiaPhong: parseFloat(roomData.giaPhong) || getRoomTypePrice(roomData.loaiPhong),
           TrangThai: roomData.trangThai || '',
@@ -140,7 +158,8 @@ const RoomManagement = () => {
         setError(response.data.message || 'Không tìm thấy thông tin phòng.');
       }
     } catch (error) {
-      setError(`Lỗi khi lấy thông tin phòng: ${error.message}`);
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi không xác định khi lấy thông tin phòng.';
+      setError(`Lỗi khi lấy thông tin phòng: ${errorMessage}`);
       console.error('Edit fetch error:', error);
     }
   };
@@ -153,7 +172,10 @@ const RoomManagement = () => {
 
   const handleConfirmDelete = async () => {
     try {
-      const response = await axios.delete(`${API_BASE_URL}/rooms/${roomToDelete.MaPhong}`);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await axios.delete(`${API_BASE_URL}/rooms/${roomToDelete.MaPhong}`, { headers });
       if (response.data.success) {
         setShowDeleteConfirm(false);
         setShowDeleteSuccess(true);
@@ -162,13 +184,14 @@ const RoomManagement = () => {
         setError(response.data.message || 'Lỗi khi xóa phòng.');
       }
     } catch (error) {
-      // Kiểm tra lỗi ràng buộc khóa ngoại (giả sử API trả về mã lỗi 400 hoặc 409)
       if (error.response && [400, 409].includes(error.response.status)) {
         setShowConstraintError(true);
       } else {
-        setError(`Không thể xóa phòng: ${error.message}`);
+        const errorMessage = error.response?.data?.message || error.message || 'Lỗi không xác định khi xóa phòng.';
+        setError(`Không thể xóa phòng: ${errorMessage}`);
       }
       setShowDeleteConfirm(false);
+      console.error('Delete error:', error);
     }
   };
 
@@ -184,11 +207,9 @@ const RoomManagement = () => {
   };
 
   const validateRoomData = (room) => {
-    // Kiểm tra tất cả các trường đều trống
     if (!room.SoPhong.trim() && !room.TinhTrang && !room.LoaiPhong && !room.TrangThai) {
       return 'Bạn chưa nhập đầy đủ thông tin, vui lòng nhập đầy đủ thông tin';
     }
-    // Kiểm tra từng trường riêng lẻ
     if (!room.SoPhong.trim()) return 'Số phòng không được để trống';
     if (!room.TinhTrang) return 'Tình trạng không được để trống';
     if (!room.LoaiPhong) return 'Loại phòng không được để trống';
@@ -216,8 +237,10 @@ const RoomManagement = () => {
         return;
       }
 
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       if (!selectedRoom) {
-        // Kiểm tra trùng số phòng
         const isDuplicate = rooms.some(room => room.SoPhong.toLowerCase() === roomData.SoPhong.trim().toLowerCase());
         if (isDuplicate) {
           setShowDuplicateRoom(true);
@@ -226,7 +249,6 @@ const RoomManagement = () => {
       }
 
       if (selectedRoom) {
-        // Update existing room
         const maPhong = parseInt(selectedRoom.MaPhong, 10);
         if (isNaN(maPhong)) {
           setError('Mã phòng không hợp lệ.');
@@ -244,7 +266,7 @@ const RoomManagement = () => {
 
         console.log('Update payload:', updatePayload);
 
-        const response = await axios.put(`${API_BASE_URL}/rooms/${maPhong}`, updatePayload);
+        const response = await axios.put(`${API_BASE_URL}/rooms/${maPhong}`, updatePayload, { headers });
         if (response.data.success) {
           setShowDetailsModal(false);
           setShowSaveConfirm(true);
@@ -256,7 +278,6 @@ const RoomManagement = () => {
           console.error('Update API error:', response.data);
         }
       } else {
-        // Add new room
         const createPayload = {
           SoPhong: roomData.SoPhong.trim(),
           TinhTrang: roomData.TinhTrang,
@@ -266,7 +287,7 @@ const RoomManagement = () => {
 
         console.log('Create payload:', createPayload);
 
-        const response = await axios.post(`${API_BASE_URL}/rooms`, createPayload);
+        const response = await axios.post(`${API_BASE_URL}/rooms`, createPayload, { headers });
         if (response.data.success) {
           setShowDetailsModal(false);
           setShowAddSuccess(true);
@@ -279,7 +300,7 @@ const RoomManagement = () => {
         }
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message;
+      const errorMessage = error.response?.data?.message || error.message || 'Lỗi không xác định khi lưu phòng.';
       setError(`Không thể lưu phòng: ${errorMessage}`);
       console.error('Save error:', error);
     }

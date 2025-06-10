@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import debounce from 'lodash/debounce';
 import '../../Design_Css/Admin/PointHistoryManager.css';
 import Sidebar from '../../Components/Admin/Components_Js/Sliderbar';
 import LogoutModal from '../../Components/Admin/Components_Js/LogoutModal';
@@ -10,13 +11,15 @@ const PointHistoryManagement = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [pointHistory, setPointHistory] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const API_BASE_URL = 'https://localhost:7087';
 
-  const API_BASE_URL = 'https://localhost:7087'; // URL cố định của backend
-
-  const fetchPointHistory = useCallback(async () => {
+  const fetchAllPointHistory = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage('');
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/point-history?searchTerm=${searchTerm}&sortBy=MaLSTD&sortOrder=ASC`
+        `${API_BASE_URL}/api/point-history?searchTerm=${searchTerm}&sortBy=MaLSTD&sortOrder=DESC&pageNumber=1&pageSize=1000`
       );
       const contentType = response.headers.get('content-type');
       if (!response.ok) {
@@ -28,10 +31,8 @@ const PointHistoryManagement = () => {
         throw new Error('Phản hồi từ server không phải là JSON hợp lệ: ' + text.substring(0, 200));
       }
       const result = await response.json();
-      console.log('API Response:', result);
       if (result.success) {
         const historyData = result.data || [];
-        console.log('Point History Data:', historyData);
         if (!Array.isArray(historyData)) {
           throw new Error('Dữ liệu lịch sử điểm không phải là mảng');
         }
@@ -47,10 +48,10 @@ const PointHistoryManagement = () => {
             minute: '2-digit',
             hour12: false
           }).replace(',', ''),
+          rawDate: new Date(record.ngayGiaoDich),
           transactionType: record.loaiGiaoDich || 'Tích điểm'
         }));
         setPointHistory(validatedData);
-        setErrorMessage('');
       } else {
         throw new Error(result.message || 'Không thể tải danh sách lịch sử điểm');
       }
@@ -58,12 +59,18 @@ const PointHistoryManagement = () => {
       console.error('Lỗi khi gọi API:', error);
       setErrorMessage(error.message);
       setPointHistory([]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [searchTerm]);
+  }, [searchTerm, API_BASE_URL]);
+
+  // Debounce search
+  const debouncedFetch = useMemo(() => debounce(fetchAllPointHistory, 500), [fetchAllPointHistory]);
 
   useEffect(() => {
-    fetchPointHistory();
-  }, [fetchPointHistory]);
+    debouncedFetch();
+    return () => debouncedFetch.cancel();
+  }, [debouncedFetch]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -77,10 +84,17 @@ const PointHistoryManagement = () => {
     setDateFilter(e.target.value);
   };
 
-  const filteredHistory = pointHistory.filter((record) =>
-    record.customerName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (dateFilter === '' || record.transactionDate.split(' ')[0] === dateFilter.split('-').reverse().join('/'))
-  );
+  const filteredHistory = useMemo(() => pointHistory.filter((record) => {
+    const matchesSearch = record.customerName.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!dateFilter) return matchesSearch;
+
+    const filterDate = new Date(dateFilter);
+    const recordDate = record.rawDate;
+    return matchesSearch &&
+           recordDate.getFullYear() === filterDate.getFullYear() &&
+           recordDate.getMonth() === filterDate.getMonth() &&
+           recordDate.getDate() === filterDate.getDate();
+  }), [pointHistory, searchTerm, dateFilter]);
 
   const handleConfirmLogout = () => {
     console.log("Người dùng đã đăng xuất");
@@ -92,8 +106,37 @@ const PointHistoryManagement = () => {
     setShowLogoutConfirm(false);
   };
 
+  if (isLoading) {
+    return (
+      <div className="invoice-list-container">
+        <Sidebar
+          isSidebarOpen={isSidebarOpen}
+          toggleSidebar={toggleSidebar}
+          onLogoutClick={() => setShowLogoutConfirm(true)}
+        />
+        <div className="loading-container"><p>Đang tải dữ liệu...</p></div>
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="invoice-list-container">
+        <Sidebar
+          isSidebarOpen={isSidebarOpen}
+          toggleSidebar={toggleSidebar}
+          onLogoutClick={() => setShowLogoutConfirm(true)}
+        />
+        <div className="error-container">
+          <p>Lỗi: {errorMessage}</p>
+          <button onClick={fetchAllPointHistory}>Thử lại</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="phm-main-container">
+    <div className="invoice-list-container">
       <Sidebar
         isSidebarOpen={isSidebarOpen}
         toggleSidebar={toggleSidebar}
@@ -109,18 +152,15 @@ const PointHistoryManagement = () => {
           <div className="menu-icon" onClick={toggleSidebar}>☰</div>
           <div className="top-title">Quản Lý Lịch Sử Tích Điểm</div>
         </div>
-        <div className="more-icon" onClick={() => console.log('Mở tùy chọn bổ sung')}>⋮</div>
+        <div className="header-actions">
+          <div className="more-icon" onClick={() => console.log('Mở tùy chọn bổ sung')}>⋮</div>
+        </div>
       </div>
 
-      <div className="phm-content-wrapper">
-        {errorMessage && (
-          <div className="phm-error-message">
-            {errorMessage}
-          </div>
-        )}
-        <div className="phm-filter-section">
-          <div className="phm-search-box">
-            <span className="phm-search-icon"><img src="/icon_LTW/TimKiem.png" alt="#" /></span>
+      <div className="content-wrapperr">
+        <div className="search-barr-container">
+          <div className="search-bar">
+            <span className="search-icon"><img src="/icon_LTW/TimKiem.png" alt="#" /></span>
             <input
               type="text"
               placeholder="Tìm theo tên khách hàng"
@@ -128,18 +168,17 @@ const PointHistoryManagement = () => {
               onChange={handleSearch}
             />
           </div>
-          <div className="phm-date-filter">
+          <div className="date-picker">
+            <span className="calendar-icon"><img src="/icon_LTW/Lich.png" alt="Lịch" /></span>
             <input
               type="date"
               value={dateFilter}
               onChange={handleDateFilter}
             />
           </div>
-          {/* Loại bỏ nút Thêm lịch sử */}
         </div>
-
-        <div className="phm-table-container">
-          <table className="phm-history-table">
+        <div className="table-wrapper">
+          <table className="invoice-table">
             <thead>
               <tr>
                 <th>Mã Lịch Sử Điểm</th>

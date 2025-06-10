@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '../../Design_Css/Staff/CustomerManager.css';
 import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
 import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
+import axios from 'axios';
 
 const CustomerManagement = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -9,40 +10,93 @@ const CustomerManagement = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [newCustomer, setNewCustomer] = useState({
-    name: '',
-    citizenId: '',
-    phone: '',
-    city: '',
-    gender: '',
-    nationality: ''
+    hoTenKhachHang: '',
+    email: '',
+    dienThoai: '',
+    maCT: '1',
+    tenCT: 'Thanh Vien Vang',
+    tongDiem: 0,
   });
+  const [customers, setCustomers] = useState([]);
+  const [pointPrograms, setPointPrograms] = useState([]);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
-  const [showAddSuccess, setShowAddSuccess] = useState(false); // Thông báo thêm thành công
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
-  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [showAddSuccess, setShowAddSuccess] = useState(false);
+  const [showInputError, setShowInputError] = useState(false);
+  const [showDuplicateError, setShowDuplicateError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const customers = [
-    { id: 1, name: 'Vũ Văn Phú', citizenId: '182731928733', phone: '0123456789', city: 'Biên Hòa', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 2, name: 'Trần Thị Bích Hạnh', citizenId: '13146789012', phone: '0912345678', city: 'Hà Nội', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 3, name: 'Lê Văn Hùng', citizenId: '234567890123', phone: '0987654321', city: 'TP. HCM', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 4, name: 'Nguyễn Minh Trang', citizenId: '234567890123', phone: '0909090909', city: 'Đà Nẵng', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 5, name: 'Phạm Quốc Hạnh', citizenId: '456789012345', phone: '093311222', city: 'Cần Thơ', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 6, name: 'Hồ Thị Thu Hương', citizenId: '567890123456', phone: '0977998888', city: 'Huế', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 7, name: 'Đặng Minh Tâm', citizenId: '678901234567', phone: '0911222333', city: 'Hải Phòng', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 8, name: 'Võ Ngọc Mai', citizenId: '789012345678', phone: '0966554444', city: 'Nha Trang', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 9, name: 'Nguyễn Văn Quang', citizenId: '890123456789', phone: '0944433222', city: 'Gia Lai', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 10, name: 'Lê Thị Kim Ngân', citizenId: '901234567890', phone: '0922110000', city: 'Bình Dương', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 11, name: 'Trần Nhật Hào', citizenId: '12345678901', phone: '0900222111', city: 'Tây Ninh', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 12, name: 'Mai Thị Điểm My', citizenId: '223456789012', phone: '0888110000', city: 'Quảng Nam', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 13, name: 'Phan Văn Lợi', citizenId: '334567890123', phone: '0933556666', city: 'Đồng Nai', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 14, name: 'Bùi Thị Thanh Thảo', citizenId: '445678901234', phone: '0977334444', city: 'Vũng Tàu', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 15, name: 'Nguyễn Đức Tài', citizenId: '556789012345', phone: '0911445555', city: 'Bến Tre', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 16, name: 'Vũ Thị Hồng Nhung', citizenId: '667890123456', phone: '0966778889', city: 'Kiên Giang', gender: 'Nữ', nationality: 'Việt Nam' },
-    { id: 17, name: 'Lâm Văn Khôi', citizenId: '778901234567', phone: '0900112222', city: 'Phú Yên', gender: 'Nam', nationality: 'Việt Nam' },
-    { id: 18, name: 'Trần Gia Huy', citizenId: '889012345678', phone: '0944002211', city: 'Bắc Ninh', gender: 'Nam', nationality: 'Việt Nam' },
-  ];
+  const API_BASE_URL = 'https://localhost:7087';
+
+  const fetchPointPrograms = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      const response = await axios.get(`${API_BASE_URL}/api/point-programs?pageNumber=1&pageSize=100`, { headers });
+      if (response.data.success) {
+        setPointPrograms(response.data.data || []);      
+      } else {
+        throw new Error(response.data.message || 'Không thể tải danh sách chương trình điểm');
+      }
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }, []);
+
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      const response = await axios.get(
+        `${API_BASE_URL}/api/customers?searchTerm=${searchTerm}&sortBy=MaKhachHang&sortOrder=ASC`,
+        { headers }
+      );
+      if (response.data.success) {
+        const validatedData = (response.data.data || []).map((customer, index) => {
+          const program = pointPrograms.find(p => p.maCT === customer.maCT) || 
+                         pointPrograms.reduce((prev, curr) => 
+                           customer.tongDiem >= curr.diemToiThieu ? curr : prev, 
+                           pointPrograms[0] || { maCT: '1', tenCT: 'Thanh Vien Vang', diemToiThieu: 0 });
+          return {
+            maKhachHang: customer.maKhachHang || `TEMP_${index}`,
+            hoTenKhachHang: customer.hoTenKhachHang || 'N/A',
+            dienThoai: customer.dienThoai || 'N/A',
+            email: customer.email || '',
+            maCT: program.maCT,
+            tenCT: program.tenCT,
+            tongDiem: customer.tongDiem !== undefined ? customer.tongDiem : 0,
+          };
+        });
+        setCustomers(validatedData);
+        setErrorMessage('');      
+      } else {
+        throw new Error(response.data.message || 'Không thể tải danh sách khách hàng');
+      }
+    } catch (error) {
+      setErrorMessage(error.message);
+      setCustomers([]);
+    }
+  }, [searchTerm, pointPrograms]);
+
+  const checkDuplicateCustomer = async (email, phone) => {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      console.warn('No token available for duplicate validation');
+    }
+    
+    return { isDuplicate: false, message: '' };
+  };
+
+  useEffect(() => {
+    fetchPointPrograms();
+  }, [fetchPointPrograms]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -52,70 +106,186 @@ const CustomerManagement = () => {
     setSearchTerm(e.target.value);
   };
 
-  const handleEdit = (id) => {
-    const customer = customers.find((c) => c.id === id);
-    setSelectedCustomer(customer);
+  const handleEdit = (customer) => {
+    setSelectedCustomer({
+      maKhachHang: customer.maKhachHang,
+      hoTenKhachHang: customer.hoTenKhachHang,
+      email: customer.email,
+      dienThoai: customer.dienThoai,
+      maCT: customer.maCT,
+      tenCT: customer.tenCT,
+      tongDiem: customer.tongDiem,
+    });
     setShowDetailsModal(true);
-  };
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const handleConfirmLogout = () => {
-    console.log("Người dùng đã đăng xuất");
-    setShowLogoutConfirm(false);
-    window.location.href = '/'; // Điều hướng sau khi xác nhận
-  };
-  const handleDelete = (id) => {
-    const customer = customers.find((c) => c.id === id);
-    setCustomerToDelete(customer);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleConfirmDelete = () => {
-    console.log(`Xóa khách hàng ${customerToDelete.id}`);
-    setShowDeleteConfirm(false);
-    setShowDeleteSuccess(true);
   };
 
   const handleAddCustomer = () => {
     setNewCustomer({
-      name: '',
-      citizenId: '',
-      phone: '',
-      city: '',
-      gender: '',
-      nationality: ''
+      hoTenKhachHang: '',
+      email: '',
+      dienThoai: '',
+      maCT: '1',
+      tenCT: 'Thanh Vien Vang',
+      tongDiem: 0,
     });
     setSelectedCustomer(null);
     setShowDetailsModal(true);
   };
 
-  const handleSave = () => {
-    if (selectedCustomer) {
-      console.log('Lưu thông tin khách hàng:', selectedCustomer);
-    } else {
-      console.log('Thêm khách hàng mới:', newCustomer);
-      setShowAddSuccess(true); // Hiển thị thông báo thêm thành công
+  const validateCustomerData = (customerData) => {
+    if (!customerData.hoTenKhachHang.trim()) return 'Vui lòng nhập họ tên khách hàng.';
+    if (!customerData.email.trim()) return 'Vui lòng nhập email.';
+    if (!customerData.dienThoai.trim()) return 'Vui lòng nhập số điện thoại.';
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customerData.email)) {
+      return 'Email không đúng định dạng.';
     }
-    setShowDetailsModal(false);
-    setShowSaveConfirm(true);
+    
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(customerData.dienThoai)) {
+      return 'Số điện thoại phải có 10 chữ số và bắt đầu bằng số 0.';
+    }
+
+    return null;
+  };
+
+  const determineProgram = (tongDiem) => {
+    return pointPrograms.reduce((prev, curr) => 
+      tongDiem >= curr.diemToiThieu ? curr : prev, 
+      pointPrograms[0] || { maCT: '1', tenCT: 'Thanh Vien Vang', diemToiThieu: 0 });
+  };
+
+  const handleSave = async () => {
+    const customerData = selectedCustomer || newCustomer;
+    
+    const validationError = validateCustomerData(customerData);
+    if (validationError) {
+      setShowInputError(true);
+      setErrorMessage(validationError);
+      return;
+    }
+    
+    const duplicateResult = await checkDuplicateCustomer(customerData.email, customerData.dienThoai);
+    const { isDuplicate, message } = duplicateResult;
+    if (isDuplicate) {
+      setErrorMessage(message);
+      setShowDuplicateError(true);
+      return;
+    }
+    
+    try {
+      const url = selectedCustomer
+        ? `${API_BASE_URL}/api/customers/${selectedCustomer.maKhachHang}`
+        : `${API_BASE_URL}/api/customers`;
+      const method = selectedCustomer ? 'PUT' : 'POST';
+
+      const program = determineProgram(customerData.tongDiem);
+      const tenCT = program.tenCT;
+      const maCT = program.maCT;
+
+      const body = {
+        MaKhachHang: selectedCustomer ? selectedCustomer.maKhachHang : undefined,
+        HoTenKhachHang: customerData.hoTenKhachHang.trim(),
+        Email: customerData.email.trim(),
+        DienThoai: customerData.dienThoai.trim(),
+        MaCT: maCT,
+        TenCT: tenCT,
+        TongDiem: parseInt(customerData.tongDiem || 0, 10),
+      };
+
+      if (selectedCustomer) {
+        body.MaKhachHang = selectedCustomer.maKhachHang;
+      }
+
+      const token = localStorage.getItem('token');
+
+      const requestConfig = {
+        method: method,
+        url: url,
+        data: body,
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        timeout: 30000,
+      };
+
+      console.log('Request Config:', requestConfig);
+
+      const response = await axios(requestConfig);
+      
+      if (response.data && (response.data.success === true || response.status === 200 || response.status === 201)) {
+        setShowDetailsModal(false);
+        setShowSaveConfirm(true);
+        setShowAddSuccess(!selectedCustomer);
+        
+        await fetchCustomers();
+      } else {
+        throw new Error(response.data?.message || (selectedCustomer ? 'Cập nhật khách hàng thất bại' : 'Thêm khách hàng thất bại'));
+      }
+    } catch (error) {
+      let errorMessage = 'Có lỗi khi lưu khách hàng';
+      
+      if (error.response) {
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        switch (status) {
+          case 400:
+            errorMessage = `Dữ liệu không hợp lệ: ${data?.message || JSON.stringify(data) || 'Vui lòng kiểm tra thông tin nhập vào'}`;
+            break;
+          case 401:
+            errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+            break;
+          case 403:
+            errorMessage = 'Bạn không có quyền thực hiện thao tác này.';
+            break;
+          case 404:
+            errorMessage = 'Không tìm thấy API endpoint. Vui lòng liên hệ admin.';
+            break;
+          case 500:
+            errorMessage = `Lỗi server: ${data?.message || 'Vui lòng thử lại sau ít phút'}`;
+            break;
+          default:
+            errorMessage = `Lỗi ${status}: ${data?.message || data || error.response.statusText}`;
+        }
+      } else if (error.request) {
+        errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Yêu cầu bị timeout. Vui lòng thử lại.';
+      } else {
+        errorMessage = error.message || 'Có lỗi không xác định xảy ra';
+      }
+      
+      setErrorMessage(errorMessage);
+      setShowInputError(true);
+      console.log('Error Details:', error.response ? error.response.data : error);
+    }
   };
 
   const handleCancel = () => {
     setShowDetailsModal(false);
     setSelectedCustomer(null);
     setNewCustomer({
-      name: '',
-      citizenId: '',
-      phone: '',
-      city: '',
-      gender: '',
-      nationality: ''
+      hoTenKhachHang: '',
+      email: '',
+      dienThoai: '',
+      maCT: '1',
+      tenCT: 'Thanh Vien Vang',
+      tongDiem: 0,
     });
   };
+
   const handleCancelLogout = () => {
     setShowLogoutConfirm(false);
   };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirm(false);
+    window.location.href = '/';
+  };
+
   return (
     <div className="cm-main-container">
       <Sidebar
@@ -133,23 +303,26 @@ const CustomerManagement = () => {
           <div className="menu-icon" onClick={toggleSidebar}>☰</div>
           <div className="top-title">Quản Lý Khách Hàng</div>
         </div>
-        <div className="more-icon" onClick={() => console.log('Mở tùy chọn bổ sung')}>⋮</div>
+        <div className="more-icon" onClick={() => {}}>⋮</div>
       </div>
 
       <div className="cm-content-wrapper">
+        {errorMessage && <div className="cm-error-message">{errorMessage}</div>}
         <div className="cm-search-add-section">
           <div className="cm-search-box">
-            <span className="cm-search-icon"><img src="/icon_LTW/TimKiem.png" alt="#"></img></span>
+            <span className="cm-search-icon"><img src="/icon_LTW/TimKiem.png" alt="#" /></span>
             <input
               type="text"
-              placeholder="Tìm theo tên khách hàng"
+              placeholder="Tìm theo họ tên khách hàng"
               value={searchTerm}
               onChange={handleSearch}
             />
           </div>
-          <button className="cm-add-customer-btn" onClick={handleAddCustomer}>
-            Thêm khách hàng
-          </button>
+          <div className="cm-add-action">
+            <button className="cm-add-customer-btn" onClick={handleAddCustomer}>
+              Thêm khách hàng
+            </button>
+          </div>
         </div>
 
         <div className="cm-table-container">
@@ -157,39 +330,38 @@ const CustomerManagement = () => {
             <thead>
               <tr>
                 <th>Mã khách hàng</th>
-                <th>Họ và tên</th>
-                <th>Căn cước công dân</th>
+                <th>Họ tên khách hàng</th>
+                <th>Email</th>
                 <th>Số điện thoại</th>
-                <th>Địa chỉ</th>
-                <th>Giới tính</th>
-                <th>Quốc tịch</th>
+                <th>Tổng điểm</th>
+                <th>Mã chương trình</th>
+                <th>Tên chương trình</th>
                 <th>Sửa</th>
-                <th>Xóa</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((customer) => (
-                <tr key={customer.id}>
-                  <td>{customer.id}</td>
-                  <td>{customer.name}</td>
-                  <td>{customer.citizenId}</td>
-                  <td>{customer.phone}</td>
-                  <td>{customer.city}</td>
-                  <td>{customer.gender}</td>
-                  <td>{customer.nationality}</td>
-                  <td>
-                    <button className="cm-edit-btn" >
-                      <img onClick={() => handleEdit(customer.id)} src="/icon_LTW/Edit.png" alt="#"></img>
-                    </button>
-                  </td>
-                  <td>
-                    <button
-                      className="cm-delete-btn" >
-                      <img onClick={() => handleDelete(customer.id)} src="/icon_LTW/Xoa.png" alt="#"></img>
-                    </button>
-                  </td>
+              {customers.length > 0 ? (
+                customers.map((customer) => (
+                  <tr key={customer.maKhachHang}>
+                    <td>{customer.maKhachHang}</td>
+                    <td>{customer.hoTenKhachHang}</td>
+                    <td>{customer.email}</td>
+                    <td>{customer.dienThoai}</td>
+                    <td>{customer.tongDiem}</td>
+                    <td>{customer.maCT}</td>
+                    <td>{customer.tenCT}</td>
+                    <td>
+                      <button className="cm-edit-btn" onClick={() => handleEdit(customer)}>
+                        <img src="/icon_LTW/Edit.png" alt="#" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8">Không có dữ liệu để hiển thị</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -198,111 +370,76 @@ const CustomerManagement = () => {
       {showDetailsModal && (
         <div className="cm-modal-overlay">
           <div className="cm-modal-wrapper">
-            <h2 className="cm-modal-title">{selectedCustomer ? `Sửa khách hàng ${selectedCustomer.id}` : 'Thêm khách hàng'}</h2>
+            <h2 className="cm-modal-title">{selectedCustomer ? `Sửa khách hàng ${selectedCustomer.maKhachHang}` : 'Thêm khách hàng'}</h2>
             <div className="cm-modal-content">
               <div className="cm-form-container">
                 <div className="cm-form-field">
-                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_Hoten.png" alt="#"></img></span>
+                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_Hoten.png" alt="#" /></span>
                   <input
                     type="text"
-                    placeholder="Họ và tên khách hàng"
-                    value={selectedCustomer ? selectedCustomer.name : newCustomer.name}
+                    placeholder="Họ tên khách hàng"
+                    value={selectedCustomer ? selectedCustomer.hoTenKhachHang : newCustomer.hoTenKhachHang}
                     onChange={(e) => {
                       if (selectedCustomer) {
-                        setSelectedCustomer({ ...selectedCustomer, name: e.target.value });
+                        setSelectedCustomer({ ...selectedCustomer, hoTenKhachHang: e.target.value });
                       } else {
-                        setNewCustomer({ ...newCustomer, name: e.target.value });
+                        setNewCustomer({ ...newCustomer, hoTenKhachHang: e.target.value });
                       }
                     }}
                     className="cm-input-field"
                   />
                 </div>
                 <div className="cm-form-field">
-                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_GioiTInh.png" alt="#"></img></span>
-                  <select
-                    value={selectedCustomer ? selectedCustomer.gender : newCustomer.gender}
+                  <span className="cm-field-icon"><img src="/icon_LTW/Email.png" alt="#" /></span>
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={selectedCustomer ? selectedCustomer.email : newCustomer.email}
                     onChange={(e) => {
                       if (selectedCustomer) {
-                        setSelectedCustomer({ ...selectedCustomer, gender: e.target.value });
+                        setSelectedCustomer({ ...selectedCustomer, email: e.target.value });
                       } else {
-                        setNewCustomer({ ...newCustomer, gender: e.target.value });
+                        setNewCustomer({ ...newCustomer, email: e.target.value });
                       }
                     }}
-                    className="cm-select-field"
-                  >
-                    <option value="" disabled>Giới tính</option>
-                    <option value="Nam">Nam</option>
-                    <option value="Nữ">Nữ</option>
-                    <option value="Khác">Khác</option>
-                  </select>
+                    className="cm-input-field"
+                  />
                 </div>
                 <div className="cm-form-field">
-                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_Chitietphieuthue.png" alt="#"></img></span>
+                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_SĐT.png" alt="#" /></span>
                   <div className="cm-input-with-length">
                     <input
                       type="text"
-                      placeholder="Nhập CCCD"
-                      value={selectedCustomer ? selectedCustomer.citizenId : newCustomer.citizenId}
+                      placeholder="Số điện thoại"
+                      value={selectedCustomer ? selectedCustomer.dienThoai : newCustomer.dienThoai}
                       onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
                         if (selectedCustomer) {
-                          setSelectedCustomer({ ...selectedCustomer, citizenId: e.target.value });
+                          setSelectedCustomer({ ...selectedCustomer, dienThoai: value });
                         } else {
-                          setNewCustomer({ ...newCustomer, citizenId: e.target.value });
-                        }
-                      }}
-                      className="cm-input-field"
-                      maxLength="12"
-                    />
-                    <span className="cm-field-length">{(selectedCustomer ? selectedCustomer.citizenId : newCustomer.citizenId).length}/12</span>
-                  </div>
-                </div>
-                <div className="cm-form-field">
-                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_SĐT.png" alt="#"></img></span>
-                  <div className="cm-input-with-length">
-                    <input
-                      type="text"
-                      placeholder="Nhập SĐT"
-                      value={selectedCustomer ? selectedCustomer.phone : newCustomer.phone}
-                      onChange={(e) => {
-                        if (selectedCustomer) {
-                          setSelectedCustomer({ ...selectedCustomer, phone: e.target.value });
-                        } else {
-                          setNewCustomer({ ...newCustomer, phone: e.target.value });
+                          setNewCustomer({ ...newCustomer, dienThoai: value });
                         }
                       }}
                       className="cm-input-field"
                       maxLength="10"
                     />
-                    <span className="cm-field-length">{(selectedCustomer ? selectedCustomer.phone : newCustomer.phone).length}/10</span>
+                    <span className="cm-field-length">
+                      {(selectedCustomer ? selectedCustomer.dienThoai : newCustomer.dienThoai).length}/10
+                    </span>
                   </div>
                 </div>
                 <div className="cm-form-field">
-                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_Diachi.png" alt="#"></img></span>
+                  <span className="cm-field-icon"><img src="/icon_LTW/Điểm.png" alt="#" /></span>
                   <input
-                    type="text"
-                    placeholder="Nhập địa chỉ"
-                    value={selectedCustomer ? selectedCustomer.city : newCustomer.city}
+                    type="number"
+                    placeholder="Tổng điểm"
+                    value={selectedCustomer ? selectedCustomer.tongDiem : newCustomer.tongDiem}
                     onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
                       if (selectedCustomer) {
-                        setSelectedCustomer({ ...selectedCustomer, city: e.target.value });
+                        setSelectedCustomer({ ...selectedCustomer, tongDiem: value });
                       } else {
-                        setNewCustomer({ ...newCustomer, city: e.target.value });
-                      }
-                    }}
-                    className="cm-input-field"
-                  />
-                </div>
-                <div className="cm-form-field">
-                  <span className="cm-field-icon"><img src="/icon_LTW/ĐP_QuocTich.png" alt="#"></img></span>
-                  <input
-                    type="text"
-                    placeholder="Nhập quốc tịch"
-                    value={selectedCustomer ? selectedCustomer.nationality : newCustomer.nationality}
-                    onChange={(e) => {
-                      if (selectedCustomer) {
-                        setSelectedCustomer({ ...selectedCustomer, nationality: e.target.value });
-                      } else {
-                        setNewCustomer({ ...newCustomer, nationality: e.target.value });
+                        setNewCustomer({ ...newCustomer, tongDiem: value });
                       }
                     }}
                     className="cm-input-field"
@@ -317,10 +454,11 @@ const CustomerManagement = () => {
           </div>
         </div>
       )}
+
       {showSaveConfirm && (
         <div className="logout-modal">
           <div className="logout-modal-content">
-            <span className="close-icon" onClick={() => setShowSaveConfirm(false)}><img src="/icon_LTW/FontistoClose.png" alt="#"></img></span>
+            <span className="close-icon" onClick={() => setShowSaveConfirm(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
             <div className="logout-modal-header">
               <span className="header-text">Thông Báo</span>
             </div>
@@ -332,7 +470,7 @@ const CustomerManagement = () => {
             <div className="logout-modal-buttons">
               <button className="confirm-button" onClick={() => {
                 setShowSaveConfirm(false);
-                setShowAddSuccess(false); // Đặt lại trạng thái thông báo
+                setShowAddSuccess(false);
               }}>
                 OK
               </button>
@@ -340,35 +478,37 @@ const CustomerManagement = () => {
           </div>
         </div>
       )}
-      {showDeleteConfirm && customerToDelete && (
+
+      {showInputError && (
         <div className="logout-modal">
           <div className="logout-modal-content">
-            <span className="close-icon" onClick={() => setShowDeleteConfirm(false)}><img src="/icon_LTW/FontistoClose.png" alt="#"></img></span>
+            <span className="close-icon" onClick={() => setShowInputError(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
             <div className="logout-modal-header">
               <span className="header-text">Thông Báo</span>
             </div>
-            <p className="logout-message">Bạn có thực sự muốn xóa {customerToDelete.name}?</p>
+            <p className="logout-message">{errorMessage}</p>
             <div className="logout-modal-buttons">
-              <button className="confirm-button" onClick={handleConfirmDelete}>
-                YES
-              </button>
-              <button className="cancel-button" onClick={() => setShowDeleteConfirm(false)}>
-                NO
+              <button className="confirm-button" onClick={() => setShowInputError(false)}>
+                OK
               </button>
             </div>
           </div>
         </div>
       )}
-      {showDeleteSuccess && (
+
+      {showDuplicateError && (
         <div className="logout-modal">
           <div className="logout-modal-content">
-            <span className="close-icon" onClick={() => setShowDeleteSuccess(false)}><img src="/icon_LTW/FontistoClose.png" alt="#"></img></span>
+            <span className="close-icon" onClick={() => setShowDuplicateError(false)}><img src="/icon_LTW/FontistoClose.png" alt="#" /></span>
             <div className="logout-modal-header">
               <span className="header-text">Thông Báo</span>
             </div>
-            <p className="logout-message">Xóa thành công!</p>
+            <p className="logout-message">{errorMessage}</p>
             <div className="logout-modal-buttons">
-              <button className="confirm-button" onClick={() => setShowDeleteSuccess(false)}>
+              <button className="confirm-button" onClick={() => {
+                setShowDuplicateError(false);
+                setErrorMessage('');
+              }}>
                 OK
               </button>
             </div>

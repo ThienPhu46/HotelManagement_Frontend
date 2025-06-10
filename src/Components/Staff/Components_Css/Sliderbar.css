@@ -45,6 +45,16 @@
   transition: transform 0.2s ease;
 }
 
+.sidebar-header .avatar-placeholder {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-header .avatar-placeholder:hover {
+  transform: scale(1.05);
+}
+
 .sidebar-header .avatar-placeholder img {
   width: 160px;
   height: 160px;
