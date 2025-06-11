@@ -29,40 +29,55 @@ const CustomerManagement = () => {
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.ceil(customers.length / pageSize);
-  const paginatedCustomers = React.useMemo(() => {
-    const startIdx = (currentPage - 1) * pageSize;
-    return customers.slice(startIdx, startIdx + pageSize);
-  }, [customers, currentPage]);
-  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  
+  const [totalCustomers, setTotalCustomers] = useState(0); // Tổng số khách hàng từ backend
+  const totalPages = Math.ceil(totalCustomers / pageSize);
+
+  // Phân trang chương trình điểm
+  const [currentPagePointProgram, setCurrentPagePointProgram] = useState(1);
+  const pageSizePointProgram = 10;
+  const [totalPointPrograms, setTotalPointPrograms] = useState(0);
+  const totalPagesPointPrograms = Math.ceil(totalPointPrograms / pageSizePointProgram);
+
   const API_BASE_URL = process.env.REACT_APP_API_URL;
 
   const fetchPointPrograms = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      
-      const response = await axios.get(`${API_BASE_URL}/api/point-programs?pageNumber=1&pageSize=100`, { headers });
+      const response = await axios.get(`${API_BASE_URL}/api/point-programs`, {
+        params: {
+          pageNumber: currentPagePointProgram,
+          pageSize: pageSizePointProgram
+        },
+        headers
+      });
       if (response.data.success) {
-        setPointPrograms(response.data.data || []);      
+        setPointPrograms(response.data.data || []);
+        setTotalPointPrograms(response.data.totalCount || 0);
       } else {
         throw new Error(response.data.message || 'Không thể tải danh sách chương trình điểm');
       }
     } catch (error) {
       setErrorMessage(error.message);
     }
-  }, []);
+  }, [currentPagePointProgram]);
 
   const fetchCustomers = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      
       const response = await axios.get(
-        `${API_BASE_URL}/api/customers?searchTerm=${searchTerm}&sortBy=MaKhachHang&sortOrder=ASC&pageNumber=1&pageSize=100`,
-        { headers }
+        `${API_BASE_URL}/api/customers`,
+        {
+          params: {
+            searchTerm: searchTerm || null,
+            sortBy: 'MaKhachHang',
+            sortOrder: 'ASC',
+            pageNumber: currentPage,
+            pageSize: pageSize
+          },
+          headers
+        }
       );
       if (response.data.success) {
         const validatedData = (response.data.data || []).map((customer, index) => {
@@ -81,15 +96,17 @@ const CustomerManagement = () => {
           };
         });
         setCustomers(validatedData);
-        setErrorMessage('');      
+        setTotalCustomers(response.data.totalCount || 0);
+        setErrorMessage('');
       } else {
         throw new Error(response.data.message || 'Không thể tải danh sách khách hàng');
       }
     } catch (error) {
       setErrorMessage(error.message);
       setCustomers([]);
+      setTotalCustomers(0);
     }
-  }, [searchTerm, pointPrograms]);
+  }, [searchTerm, pointPrograms, currentPage]);
 
   const checkDuplicateCustomer = async (email, phone) => {
     const token = localStorage.getItem('token');
@@ -355,8 +372,8 @@ const CustomerManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedCustomers.length > 0 ? (
-                paginatedCustomers.map((customer) => (
+              {customers.length > 0 ? (
+                customers.map((customer) => (
                   <tr key={customer.maKhachHang}>
                     <td>{customer.maKhachHang}</td>
                     <td>{customer.hoTenKhachHang}</td>
@@ -384,7 +401,7 @@ const CustomerManagement = () => {
         <div className="pagination-container">
           <button
             className="pagination-btn"
-            onClick={handlePrevPage}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
             Trang trước
@@ -394,7 +411,7 @@ const CustomerManagement = () => {
           </span>
           <button
             className="pagination-btn"
-            onClick={handleNextPage}
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages || totalPages === 0}
           >
             Trang sau

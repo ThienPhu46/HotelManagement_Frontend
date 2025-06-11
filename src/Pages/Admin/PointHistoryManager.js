@@ -15,11 +15,8 @@ const PointHistoryManagement = () => {
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.ceil(pointHistory.length / pageSize);
-  const paginatedHistory = useMemo(() => {
-    const startIdx = (currentPage - 1) * pageSize;
-    return pointHistory.slice(startIdx, startIdx + pageSize);
-  }, [pointHistory, currentPage]);
+  const [totalPointHistory, setTotalPointHistory] = useState(0); // Tổng số bản ghi từ backend
+  const totalPages = Math.ceil(totalPointHistory / pageSize);
 
   const API_BASE_URL = process.env.REACT_APP_API_URL;
   const fetchAllPointHistory = useCallback(async () => {
@@ -27,7 +24,7 @@ const PointHistoryManagement = () => {
     setErrorMessage('');
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/point-history?searchTerm=${searchTerm}&sortBy=MaLSTD&sortOrder=DESC&pageNumber=1&pageSize=1000`
+        `${API_BASE_URL}/api/point-history?searchTerm=${searchTerm}&sortBy=MaLSTD&sortOrder=DESC&pageNumber=${currentPage}&pageSize=${pageSize}`
       );
       const contentType = response.headers.get('content-type');
       if (!response.ok) {
@@ -60,6 +57,7 @@ const PointHistoryManagement = () => {
           transactionType: record.loaiGiaoDich || 'Tích điểm'
         }));
         setPointHistory(validatedData);
+        setTotalPointHistory(result.totalCount || 0);
       } else {
         throw new Error(result.message || 'Không thể tải danh sách lịch sử điểm');
       }
@@ -67,10 +65,11 @@ const PointHistoryManagement = () => {
       console.error('Lỗi khi gọi API:', error);
       setErrorMessage(error.message);
       setPointHistory([]);
+      setTotalPointHistory(0);
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, API_BASE_URL]);
+  }, [searchTerm, API_BASE_URL, currentPage]);
 
   // Debounce search
   const debouncedFetch = useMemo(() => debounce(fetchAllPointHistory, 500), [fetchAllPointHistory]);
@@ -114,8 +113,6 @@ const PointHistoryManagement = () => {
     setShowLogoutConfirm(false);
   };
 
-  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   useEffect(() => { setCurrentPage(1); }, [searchTerm, dateFilter]);
 
   if (isLoading) {
@@ -201,8 +198,8 @@ const PointHistoryManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedHistory.length > 0 ? (
-                paginatedHistory.map((record) => (
+              {pointHistory.length > 0 ? (
+                pointHistory.map((record) => (
                   <tr key={record.id}>
                     <td>{record.id}</td>
                     <td>{record.customerName}</td>
@@ -223,7 +220,7 @@ const PointHistoryManagement = () => {
         <div className="pagination-container">
           <button
             className="pagination-btn"
-            onClick={handlePrevPage}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
             Trang trước
@@ -233,7 +230,7 @@ const PointHistoryManagement = () => {
           </span>
           <button
             className="pagination-btn"
-            onClick={handleNextPage}
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages || totalPages === 0}
           >
             Trang sau

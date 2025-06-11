@@ -33,14 +33,21 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
     }
     return '1 ngày';  };
 
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  // Bỏ phân trang frontend, chỉ dùng invoices trả về từ backend
+  const paginatedInvoices = invoices;
+
   // Hàm lấy dữ liệu hóa đơn, thanh toán và dịch vụ
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [invoiceResponse, paymentResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/invoices`, { params: { pageNumber: 1, pageSize: 100, sortBy: 'MaHoaDon', sortOrder: 'DESC' } }),
-        axios.get(`${API_BASE_URL}/payments`, { params: { pageNumber: 1, pageSize: 100, sortBy: 'MaThanhToan', sortOrder: 'DESC' } })
+        axios.get(`${API_BASE_URL}/invoices`, { params: { pageNumber: currentPage, pageSize, sortBy: 'MaHoaDon', sortOrder: 'DESC' } }),
+        axios.get(`${API_BASE_URL}/payments`, { params: { pageNumber: currentPage, pageSize, sortBy: 'MaThanhToan', sortOrder: 'DESC' } })
       ]);
 
       if (!invoiceResponse.data.success) throw new Error(invoiceResponse.data.message || 'Lỗi khi lấy danh sách hóa đơn');
@@ -48,6 +55,15 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
 
       const invoiceData = invoiceResponse.data.data;
       const paymentData = paymentResponse.data.data;
+
+      // Lấy tổng số trang từ backend nếu có, hoặc tự tính
+      if (typeof invoiceResponse.data.totalPages === 'number' && invoiceResponse.data.totalPages > 0) {
+        setTotalPages(invoiceResponse.data.totalPages);
+      } else if (typeof invoiceResponse.data.totalCount === 'number') {
+        setTotalPages(Math.ceil(invoiceResponse.data.totalCount / pageSize));
+      } else {
+        setTotalPages(1);
+      }
 
       if (!Array.isArray(invoiceData)) throw new Error('Dữ liệu hóa đơn không đúng định dạng');
 
@@ -159,7 +175,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
     } finally {
       setLoading(false);
     }
-  }, [API_BASE_URL]);
+  }, [API_BASE_URL, currentPage]);
 
   // Debounce search
   const debouncedFetch = useMemo(() => debounce(fetchInvoices, 500), [fetchInvoices]);
@@ -186,29 +202,12 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
     }
   };
 
-  const filteredInvoices = useMemo(() => invoices.filter((invoice) => {
-    const matchesSearch = !searchTerm || invoice.id.toString().includes(searchTerm);
-    if (!selectedDate) return matchesSearch;
-
-    const filterDate = new Date(selectedDate.split('/').reverse().join('-'));
-    const recordDate = invoice.rawDate;
-    return matchesSearch &&
-           recordDate.getFullYear() === filterDate.getFullYear() &&
-           recordDate.getMonth() === filterDate.getMonth() &&
-           recordDate.getDate() === filterDate.getDate();
-  }), [invoices, searchTerm, selectedDate]);
-
-  // Phân trang
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-  const totalPages = Math.ceil(filteredInvoices.length / pageSize);
-  const paginatedInvoices = useMemo(() => {
-    const startIdx = (currentPage - 1) * pageSize;
-    return filteredInvoices.slice(startIdx, startIdx + pageSize);
-  }, [filteredInvoices, currentPage]);
-  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  // Khi searchTerm hoặc selectedDate thay đổi, reset về trang 1
   useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedDate]);
+  // Gọi fetchInvoices khi currentPage, searchTerm, selectedDate thay đổi
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices, currentPage, searchTerm, selectedDate]);
 
   const handleDetails = (id) => {
     const invoice = invoices.find((inv) => inv.id === id);
@@ -238,6 +237,11 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
   const handleMoreOptions = () => {
     console.log('Mở tùy chọn bổ sung');
   };
+
+  // Hàm chuyển trang trước
+  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
+  // Hàm chuyển trang sau
+  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
 
   if (loading) {
     return (

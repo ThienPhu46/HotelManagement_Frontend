@@ -31,13 +31,8 @@ const RoomManagement = () => {
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
-  const totalPages = Math.ceil(rooms.length / pageSize);
-  const paginatedRooms = React.useMemo(() => {
-    const startIdx = (currentPage - 1) * pageSize;
-    return rooms.slice(startIdx, startIdx + pageSize);
-  }, [rooms, currentPage]);
-  const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-  const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  const [totalRooms, setTotalRooms] = useState(0); // Tổng số phòng từ backend
+  const totalPages = Math.ceil(totalRooms / pageSize);
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
   const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
@@ -45,12 +40,16 @@ const RoomManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
       const response = await axios.get(`${API_BASE_URL}/rooms`, {
-        params: { searchTerm, sortBy: 'MaPhong', sortOrder: 'ASC', pageNumber: 1, pageSize: 100 },
+        params: {
+          searchTerm,
+          sortBy: 'MaPhong',
+          sortOrder: 'ASC',
+          pageNumber: currentPage,
+          pageSize: pageSize
+        },
         headers,
       });
-
       if (response.data.success) {
         if (Array.isArray(response.data.data)) {
           const mappedRooms = response.data.data.map(room => ({
@@ -62,32 +61,34 @@ const RoomManagement = () => {
             TinhTrang: room.tinhTrang || 'N/A',
           }));
           setRooms(mappedRooms);
+          setTotalRooms(response.data.totalCount || 0);
           setError(null);
         } else {
           setError('Dữ liệu phòng không đúng định dạng, không phải mảng.');
           setRooms([]);
+          setTotalRooms(0);
         }
       } else {
         setError(response.data.message || 'Lỗi khi lấy danh sách phòng từ API.');
         setRooms([]);
+        setTotalRooms(0);
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Lỗi không xác định khi lấy danh sách phòng.';
       setError(`Lỗi khi lấy danh sách phòng: ${errorMessage}`);
       setRooms([]);
+      setTotalRooms(0);
       console.error('Fetch rooms error:', error);
     }
-  }, [searchTerm]);
+  }, [searchTerm, currentPage]);
 
   const fetchRoomTypes = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const response = await axios.get(`${API_BASE_URL}/room-types?pageNumber=1&pageSize=100`, {
+      const response = await axios.get(`${API_BASE_URL}/room-types?pageNumber=1&pageSize=10`, {
         headers,
       });
-
       if (response.data.success) {
         if (Array.isArray(response.data.data)) {
           const mappedRoomTypes = response.data.data.map(type => ({
@@ -403,14 +404,14 @@ const RoomManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedRooms.length === 0 && !error ? (
+              {rooms.length === 0 && !error ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center' }}>
                     Không có dữ liệu để hiển thị.
                   </td>
                 </tr>
               ) : (
-                paginatedRooms.map((room) => (
+                rooms.map((room) => (
                   <tr key={room.MaPhong}>
                     <td>{room.SoPhong}</td>
                     <td>{room.TinhTrang}</td>
@@ -440,7 +441,7 @@ const RoomManagement = () => {
         <div className="pagination-container">
           <button
             className="pagination-btn"
-            onClick={handlePrevPage}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
             Trang trước
@@ -450,7 +451,7 @@ const RoomManagement = () => {
           </span>
           <button
             className="pagination-btn"
-            onClick={handleNextPage}
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages || totalPages === 0}
           >
             Trang sau
