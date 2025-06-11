@@ -165,20 +165,7 @@ const Dashboard = () => {
         </div>
         {error && <div style={{ color: 'red', textAlign: 'center', marginBottom: 10 }}>{error}</div>}
         {/* Employee Cards */}
-        <div className="employee-container">
-          <div className="employee-card">
-            <div className="avatar" style={{ backgroundColor: '#f4c430' }}></div>
-            <p>Nguyễn Văn A</p>
-          </div>
-          <div className="employee-card employee-card-middle">
-            <div className="avatar" style={{ backgroundColor: '#1e6bd0' }}></div>
-            <p>Minh Đức</p>
-          </div>
-          <div className="employee-card">
-            <div className="avatar" style={{ backgroundColor: '#1e6bd0' }}></div>
-            <p>Minh Đức</p>
-          </div>
-        </div>
+        
       </div>
 
       <LogoutModal

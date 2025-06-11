@@ -389,7 +389,7 @@ const InvoiceList = () => {
             <thead>
               <tr>
                 <th>Mã hóa đơn</th>
-                <th>Tình Trạng / Ngày thanh toán</th>
+                <th>Tình Trạng</th>
                 <th>Tổng tiền</th>
                 <th>Mã chi tiết phiếu thuê</th>
                 <th>Chi tiết</th>
@@ -403,9 +403,6 @@ const InvoiceList = () => {
                     <div className="payment-status-cell">
                       <div className={`payment-status ${invoice.status === 'Đã thanh toán' ? 'paid' : 'unpaid'}`}>
                         {invoice.status}
-                      </div>
-                      <div className="payment-date">
-                        {invoice.paymentDate || invoice.date || 'Chưa có ngày thanh toán'}
                       </div>
                     </div>
                   </td>
