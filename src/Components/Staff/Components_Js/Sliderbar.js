@@ -95,12 +95,12 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;  // Hàm lấy thô
         </li>
         <li>
           <Link to="/Staff/BookingRoom">
-            <span className="menu-icon"><img src="/icon_LTW/SB_DatPhong.png" alt="Đặt Phòng"></img></span> Đặt Phòng
+            <span className="menu-icon"><img src="/icon_LTW/SB_Datphong.png" alt="Đặt Phòng"></img></span> Đặt Phòng
           </Link>
         </li>
         <li>
           <Link to="/Staff/BillStaff">
-            <span className="menu-icon"><img src="/icon_LTW/SB_HoaDon.png" alt="Hóa Đơn"></img></span> Hóa Đơn
+            <span className="menu-icon"><img src="/icon_LTW/Sb_Hoadon.png" alt="Hóa Đơn"></img></span> Hóa Đơn
           </Link>
         </li>
         <li>
