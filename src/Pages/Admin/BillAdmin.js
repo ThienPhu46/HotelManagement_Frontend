@@ -10,11 +10,59 @@ const InvoiceList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);  
+  const [selectedInvoice, setSelectedInvoice] = useState(null);  
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);  
   const [invoices, setInvoices] = useState([]);  
   const [loading, setLoading] = useState(true);  
   const [error, setError] = useState(null);
-const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+
+  const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+
+  // Hàm format thời gian chính xác cho múi giờ Việt Nam
+  const formatVietnameseDateTime = (dateString) => {
+    if (!dateString) return 'Chưa có thời gian';
+    
+    try {
+      // DEBUG: Log thời gian gốc từ backend
+      console.log('🕐 Thời gian gốc từ backend:', dateString);
+      
+      // Tạo đối tượng Date từ chuỗi thời gian
+      const date = new Date(dateString);
+      
+      // DEBUG: Log đối tượng Date sau khi tạo
+      console.log('📅 Date object:', date);
+      console.log('⏰ UTC time:', date.toUTCString());
+      console.log('🌍 Local time:', date.toString());
+      
+      // Kiểm tra xem date có hợp lệ không
+      if (isNaN(date.getTime())) {
+        console.error('❌ Thời gian không hợp lệ:', dateString);
+        return 'Thời gian không hợp lệ';
+      }
+
+      // Chuyển đổi sang múi giờ Việt Nam và format
+      const vietnamTime = new Intl.DateTimeFormat('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      }).format(date);
+
+      // DEBUG: Log kết quả format
+      console.log('🇻🇳 Thời gian sau khi format (VN):', vietnamTime);
+      console.log('---');
+
+      return vietnamTime;
+    } catch (error) {
+      console.error('❌ Lỗi khi format thời gian:', error);
+      return 'Lỗi hiển thị thời gian';
+    }
+  };
+
   // Hàm tính số ngày từ check-in/check-out
   const calculateRoomDays = (checkInDate, checkOutDate) => {
     if (checkInDate && checkOutDate) {
@@ -31,13 +79,13 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
       }
       return `${diffHours} giờ`;
     }
-    return '1 ngày';  };
+    return '1 ngày';
+  };
 
   // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
   const [totalPages, setTotalPages] = useState(1);
-  // Bỏ phân trang frontend, chỉ dùng invoices trả về từ backend
   const paginatedInvoices = invoices;
 
   // Hàm lấy dữ liệu hóa đơn, thanh toán và dịch vụ
@@ -46,17 +94,35 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
     setError(null);
     try {
       const [invoiceResponse, paymentResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/invoices`, { params: { pageNumber: currentPage, pageSize, sortBy: 'MaHoaDon', sortOrder: 'DESC' } }),
-        axios.get(`${API_BASE_URL}/payments`, { params: { pageNumber: currentPage, pageSize, sortBy: 'MaThanhToan', sortOrder: 'DESC' } })
+        axios.get(`${API_BASE_URL}/invoices`, { 
+          params: { 
+            pageNumber: currentPage, 
+            pageSize, 
+            sortBy: 'MaHoaDon', 
+            sortOrder: 'DESC' 
+          } 
+        }),
+        axios.get(`${API_BASE_URL}/payments`, { 
+          params: { 
+            pageNumber: currentPage, 
+            pageSize, 
+            sortBy: 'MaThanhToan', 
+            sortOrder: 'DESC' 
+          } 
+        })
       ]);
 
-      if (!invoiceResponse.data.success) throw new Error(invoiceResponse.data.message || 'Lỗi khi lấy danh sách hóa đơn');
-      if (!paymentResponse.data.success) throw new Error(paymentResponse.data.message || 'Lỗi khi lấy danh sách thanh toán');
+      if (!invoiceResponse.data.success) {
+        throw new Error(invoiceResponse.data.message || 'Lỗi khi lấy danh sách hóa đơn');
+      }
+      if (!paymentResponse.data.success) {
+        throw new Error(paymentResponse.data.message || 'Lỗi khi lấy danh sách thanh toán');
+      }
 
       const invoiceData = invoiceResponse.data.data;
       const paymentData = paymentResponse.data.data;
 
-      // Lấy tổng số trang từ backend nếu có, hoặc tự tính
+      // Lấy tổng số trang từ backend
       if (typeof invoiceResponse.data.totalPages === 'number' && invoiceResponse.data.totalPages > 0) {
         setTotalPages(invoiceResponse.data.totalPages);
       } else if (typeof invoiceResponse.data.totalCount === 'number') {
@@ -65,34 +131,31 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
         setTotalPages(1);
       }
 
-      if (!Array.isArray(invoiceData)) throw new Error('Dữ liệu hóa đơn không đúng định dạng');
+      if (!Array.isArray(invoiceData)) {
+        throw new Error('Dữ liệu hóa đơn không đúng định dạng');
+      }
 
       const mappedInvoices = await Promise.all(invoiceData.map(async (invoice) => {
         const payment = paymentData.find(p => p.maHoaDon === invoice.maHoaDon);
-        const invoiceDate = payment && payment.ngayThanhToan
-          ? (() => {
-              const paymentDateTime = new Date(payment.ngayThanhToan);
-              const vietnamOffset = 7 * 60;
-              const utc = paymentDateTime.getTime() + (paymentDateTime.getTimezoneOffset() * 60000);
-              const vietnamTime = new Date(utc + (vietnamOffset * 60000));
-              return vietnamTime.toLocaleString('vi-VN', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-              });
-            })()
-          : (invoice.ngayTaoHoaDon
-              ? (() => {
-                  const invoiceDateTime = new Date(invoice.ngayTaoHoaDon);
-                  const vietnamOffset = 7 * 60;
-                  const utc = invoiceDateTime.getTime() + (invoiceDateTime.getTimezoneOffset() * 60000);
-                  const vietnamTime = new Date(utc + (vietnamOffset * 60000));
-                  return vietnamTime.toLocaleString('vi-VN', {
-                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-                  });
-                })()
-              : 'Chưa có ngày thanh toán');
+        
+        // DEBUG: Log thông tin payment để kiểm tra
+        console.log('💳 Payment data cho hóa đơn', invoice.maHoaDon, ':', payment);
+        if (payment && payment.ngayThanhToan) {
+          console.log('📅 Ngày thanh toán gốc:', payment.ngayThanhToan);
+          console.log('🔍 Kiểu dữ liệu:', typeof payment.ngayThanhToan);
+        }
+        
+        // Sử dụng hàm format mới để hiển thị thời gian thanh toán
+        const invoicePaymentDate = payment && payment.ngayThanhToan
+          ? formatVietnameseDateTime(payment.ngayThanhToan)
+          : 'Chưa có ngày thanh toán';
+
+        console.log('✅ Kết quả hiển thị cuối cùng:', invoicePaymentDate);
+        console.log('==========================================');
 
         const paymentStatus = payment ? 'Đã thanh toán' : 'Chưa thanh toán';
         let customerDays = '1 ngày';
+        
         try {
           const bookingResponse = await axios.get(`${API_BASE_URL}/bookings/${invoice.maDatPhong}`);
           if (bookingResponse.data.success) {
@@ -101,7 +164,9 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
           }
         } catch (bookingError) {
           console.error(`Lỗi khi lấy thông tin booking ${invoice.maDatPhong}:`, bookingError);
-        }        let services = [
+        }
+
+        let services = [
           {
             name: 'Thuê phòng',
             price: invoice.tongTienPhong.toLocaleString('vi-VN'),
@@ -110,9 +175,11 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
           }
         ];
         
-        // Add additional services
+        // Thêm các dịch vụ bổ sung
         try {
-          const servicesResponse = await axios.get(`${API_BASE_URL}/bookingservice`, { params: { searchTerm: invoice.maDatPhong } });
+          const servicesResponse = await axios.get(`${API_BASE_URL}/bookingservice`, { 
+            params: { searchTerm: invoice.maDatPhong } 
+          });
           if (servicesResponse.data.success && servicesResponse.data.data) {
             const serviceTotal = servicesResponse.data.data.reduce((sum, service) => sum + service.thanhTien, 0);
             if (serviceTotal === invoice.tongTienDichVu) {
@@ -129,7 +196,9 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
           }
         } catch (serviceError) {
           console.error(`Lỗi khi lấy dịch vụ cho hóa đơn ${invoice.maHoaDon}:`, serviceError);
-        }        // Add point discount if payment exists and has point usage
+        }
+
+        // Thêm giảm giá điểm nếu có
         let finalTotal = invoice.tongThanhTien;
         if (payment && payment.soDiemSuDung > 0 && payment.soTienGiam > 0) {
           services.push({
@@ -138,23 +207,22 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
             quantity: 1,
             total: -payment.soTienGiam
           });
-          // Calculate final total after point discount
           finalTotal = invoice.tongThanhTien - payment.soTienGiam;
         }
 
+        // Format thời gian tạo hóa đơn
         const invoiceCreationDate = invoice.ngayTaoHoaDon
           ? (() => {
-              const invoiceDateTime = new Date(invoice.ngayTaoHoaDon);
-              const vietnamOffset = 7 * 60;
-              const utc = invoiceDateTime.getTime() + (invoiceDateTime.getTimezoneOffset() * 60000);
-              const vietnamTime = new Date(utc + (vietnamOffset * 60000));
-              return vietnamTime.toLocaleString('vi-VN', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-              });
+              console.log('📝 Ngày tạo hóa đơn gốc:', invoice.ngayTaoHoaDon);
+              const result = formatVietnameseDateTime(invoice.ngayTaoHoaDon);
+              console.log('📝 Ngày tạo hóa đơn sau format:', result);
+              return result;
             })()
-          : 'Chưa có ngày lập';        return {
+          : 'Chưa có ngày lập';
+
+        return {
           id: invoice.maHoaDon,
-          date: invoiceDate,
+          paymentDate: invoicePaymentDate,
           invoiceCreationDate,
           rawDate: payment && payment.ngayThanhToan ? new Date(payment.ngayThanhToan) : new Date(invoice.ngayTaoHoaDon),
           status: paymentStatus,
@@ -179,6 +247,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
 
   // Debounce search
   const debouncedFetch = useMemo(() => debounce(fetchInvoices, 500), [fetchInvoices]);
+  
   useEffect(() => {
     debouncedFetch();
     return () => debouncedFetch.cancel();
@@ -202,9 +271,12 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
     }
   };
 
-  // Khi searchTerm hoặc selectedDate thay đổi, reset về trang 1
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedDate]);
-  // Gọi fetchInvoices khi currentPage, searchTerm, selectedDate thay đổi
+  // Reset về trang 1 khi search hoặc filter
+  useEffect(() => { 
+    setCurrentPage(1); 
+  }, [searchTerm, selectedDate]);
+
+  // Gọi fetchInvoices khi có thay đổi
   useEffect(() => {
     fetchInvoices();
   }, [fetchInvoices, currentPage, searchTerm, selectedDate]);
@@ -238,16 +310,16 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
     console.log('Mở tùy chọn bổ sung');
   };
 
-  // Hàm chuyển trang trước
   const handlePrevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1));
-  // Hàm chuyển trang sau
   const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages));
 
   if (loading) {
     return (
       <div className="invoice-list-container">
         <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} onLogoutClick={handleLogoutClick} />
-        <div className="loading-container"><p>Đang tải dữ liệu hóa đơn...</p></div>
+        <div className="loading-container">
+          <p>Đang tải dữ liệu hóa đơn...</p>
+        </div>
       </div>
     );
   }
@@ -263,6 +335,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
       </div>
     );
   }
+
   return (
     <div className="invoice-list-container">
       <Sidebar
@@ -289,7 +362,9 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
       <div className="content-wrapperr">
         <div className="search-barr-container">
           <div className="search-bar">
-            <span className="search-icon"><img src="/icon_LTW/TimKiem.png" alt="Tìm kiếm" /></span>
+            <span className="search-icon">
+              <img src="/icon_LTW/TimKiem.png" alt="Tìm kiếm" />
+            </span>
             <input
               type="text"
               placeholder="Tìm kiếm hóa đơn"
@@ -298,14 +373,18 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
             />
           </div>
           <div className="date-picker">
-            <span className="calendar-icon"><img src="/icon_LTW/Lich.png" alt="Lịch" /></span>
+            <span className="calendar-icon">
+              <img src="/icon_LTW/Lich.png" alt="Lịch" />
+            </span>
             <input
               type="date"
               onChange={handleDateChange}
               placeholder="Chọn ngày"
             />
           </div>
-        </div>          <div className="table-wrapper">
+        </div>
+
+        <div className="table-wrapper">
           <table className="invoice-table">
             <thead>
               <tr>
@@ -317,7 +396,8 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               </tr>
             </thead>
             <tbody>
-              {paginatedInvoices.map((invoice) => (<tr key={invoice.id}>
+              {paginatedInvoices.map((invoice) => (
+                <tr key={invoice.id}>
                   <td>{invoice.id}</td>
                   <td>
                     <div className="payment-status-cell">
@@ -325,7 +405,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
                         {invoice.status}
                       </div>
                       <div className="payment-date">
-                        {invoice.date}
+                        {invoice.paymentDate || invoice.date || 'Chưa có ngày thanh toán'}
                       </div>
                     </div>
                   </td>
@@ -344,6 +424,7 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
             </tbody>
           </table>
         </div>
+
         {/* Phân trang */}
         <div className="pagination-container">
           <button
@@ -374,9 +455,13 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
               <img onClick={handleCloseDetails} src="/icon_LTW/thoat2.png" alt="Thoát" />
             </div>
             <div className="invoice-header">
-              <div className="invoice-logo"><img src="/icon_LTW/LogoDeBugTeam2.jpg" alt="Logo" /></div>
+              <div className="invoice-logo">
+                <img src="/icon_LTW/LogoDeBugTeam2.jpg" alt="Logo" />
+              </div>
               <div className="invoice-title">HÓA ĐƠN</div>
-              <div className="invoice-print"><img src="/icon_LTW/HĐ_Print.png" alt="In" /></div>
+              <div className="invoice-print">
+                <img src="/icon_LTW/HĐ_Print.png" alt="In" />
+              </div>
             </div>
             <span className="info-name">{selectedInvoice.customerName}</span>            
             <div className="invoice-info">              
@@ -389,7 +474,8 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
                   <span className="info-label">Số phòng:</span>
                   <span className="info-value">{selectedInvoice.customerRoom}</span>
                 </div>
-              </div>                <div className="info-row">
+              </div>
+              <div className="info-row">
                 <div className="info-rod">
                   <span className="info-label">Số hóa đơn:</span>
                   <span className="info-value">{selectedInvoice.id}</span>
@@ -399,7 +485,9 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
                   <span className="info-value">{selectedInvoice.customerDays}</span>
                 </div>
               </div>
-            </div>            <table className="details-table">
+            </div>
+
+            <table className="details-table">
               <thead>
                 <tr>
                   <th>Dịch vụ</th>

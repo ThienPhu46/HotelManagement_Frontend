@@ -35,9 +35,9 @@ const Room = () => {
   const [usePoint, setUsePoint] = useState(0);
   const [pointCustomerName, setPointCustomerName] = useState('');
   const [pointError, setPointError] = useState('');
-  const [finalPoint, setFinalPoint] = useState(0);
-
+  const [finalPoint, setFinalPoint] = useState(0);  
   const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+  
   // Helper function để tạo timestamp cho múi giờ Việt Nam
   const getVietnamTimestamp = () => {
     const now = new Date();
@@ -74,9 +74,8 @@ const Room = () => {
   const clearInvoiceCreatedForBooking = (maDatPhong) => {
     const key = getInvoiceCreatedKey(maDatPhong);
     localStorage.removeItem(key);
-  };
-  // Kiểm tra xem booking đã có hóa đơn chưa bằng cách gọi API
-  const checkIfInvoiceExists = async (maDatPhong) => {
+  };  // Kiểm tra xem booking đã có hóa đơn chưa bằng cách gọi API
+  const checkIfInvoiceExists = useCallback(async (maDatPhong) => {
     try {
       console.log(`Checking if invoice exists for booking: ${maDatPhong}`);
 
@@ -108,8 +107,7 @@ const Room = () => {
       console.error('Lỗi khi kiểm tra hóa đơn:', error);
       return null;
     }
-  };
-
+  }, [API_BASE_URL]);
   const fetchBookings = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/bookings`, {
@@ -128,30 +126,41 @@ const Room = () => {
         console.log('Bookings fetched:', bookingData);
         setBookings(bookingData);
 
-        const customerIds = bookingData.map(booking => booking.maKhachHang).filter(customerId => customerId);
+        const customerIds = [...new Set(bookingData.map(booking => booking.maKhachHang).filter(customerId => customerId))];
         console.log('Customer IDs to fetch:', customerIds);
 
         if (customerIds.length > 0) {
-          const customerPromises = customerIds.map(async (customerId) => {
-            try {
-              console.log(`Fetching customer data for ID: ${customerId}`);
-              const customerResponse = await axios.get(`${API_BASE_URL}/customers/${customerId}`);
-              if (customerResponse.data.success) {
-                console.log(`Customer ${customerId}:`, customerResponse.data.data.hoTenKhachHang);
-                return { [customerId]: customerResponse.data.data.hoTenKhachHang };
-              }
-              console.warn(`Customer ${customerId} not found or failed`);
-              return { [customerId]: `Khách hàng ${customerId}` };
-            } catch (error) {
-              console.error(`Lỗi khi lấy thông tin khách hàng ${customerId}:`, error);
-              return { [customerId]: `Khách hàng ${customerId}` };
-            }
-          });
+          // Batch load customers in chunks to reduce API calls
+          const chunkSize = 10;
+          const customerChunks = [];
+          for (let i = 0; i < customerIds.length; i += chunkSize) {
+            customerChunks.push(customerIds.slice(i, i + chunkSize));
+          }
 
-          const customersData = await Promise.all(customerPromises);
-          const newCustomersMap = Object.assign({}, ...customersData);
-          console.log('New customers data loaded:', newCustomersMap);
-          setCustomers(newCustomersMap);
+          const allCustomersData = {};
+          for (const chunk of customerChunks) {
+            const customerPromises = chunk.map(async (customerId) => {
+              try {
+                console.log(`Fetching customer data for ID: ${customerId}`);
+                const customerResponse = await axios.get(`${API_BASE_URL}/customers/${customerId}`);
+                if (customerResponse.data.success) {
+                  console.log(`Customer ${customerId}:`, customerResponse.data.data.hoTenKhachHang);
+                  return { [customerId]: customerResponse.data.data.hoTenKhachHang };
+                }
+                console.warn(`Customer ${customerId} not found or failed`);
+                return { [customerId]: `Khách hàng ${customerId}` };
+              } catch (error) {
+                console.error(`Lỗi khi lấy thông tin khách hàng ${customerId}:`, error);
+                return { [customerId]: `Khách hàng ${customerId}` };
+              }
+            });
+
+            const chunkCustomersData = await Promise.all(customerPromises);
+            Object.assign(allCustomersData, ...chunkCustomersData);
+          }
+
+          console.log('New customers data loaded:', allCustomersData);
+          setCustomers(allCustomersData);
           console.log('Customer data loading completed');
         } else {
           setCustomers({});
@@ -166,7 +175,7 @@ const Room = () => {
       console.error('Lỗi khi lấy danh sách booking:', error);
       setError('Lỗi khi lấy danh sách đặt phòng: ' + error.message);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   const consolidateServices = (services) => {
     if (!Array.isArray(services)) return [];
@@ -185,8 +194,7 @@ const Room = () => {
     const result = Array.from(serviceMap.values());
     console.log('Consolidated services (latest values only):', result);
     return result;
-  };
-  const fetchServicesForBooking = useCallback(async (maDatPhong) => {
+  };  const fetchServicesForBooking = useCallback(async (maDatPhong) => {
     try {
       console.log(`Fetching services for booking ${maDatPhong}`);
 
@@ -238,8 +246,7 @@ const Room = () => {
       console.error(`Lỗi khi lấy services cho booking ${maDatPhong}:`, error);
       return [];
     }
-  }, []);
-  const fetchRooms = useCallback(async () => {
+  }, [API_BASE_URL]);const fetchRooms = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/rooms`, {
@@ -248,7 +255,7 @@ const Room = () => {
           sortBy: 'MaPhong',
           sortOrder: 'ASC',
           pageNumber: 1,
-          pageSize: 100  // Tăng pageSize từ mặc định 10 lên 100 để lấy tất cả phòng
+          pageSize: 100  // Tăng pageSize để lấy tất cả phòng
         },
       });
       if (response.data.success) {
@@ -279,6 +286,7 @@ const Room = () => {
               if (!customers[activeBooking.maKhachHang]) {
                 console.warn(`Customer ${activeBooking.maKhachHang} not found in customers state`);
               }
+              // Only fetch services if room is occupied to reduce API calls
               if (mapStatusFromAPI(room.trangThai) === 'Phòng đang thuê') {
                 roomServices = await fetchServicesForBooking(activeBooking.maDatPhong);
               }
@@ -326,8 +334,7 @@ const Room = () => {
     } finally {
       setLoading(false);
     }
-  }, [roomTypes, bookings, customers, fetchServicesForBooking]);
-
+  }, [roomTypes, bookings, customers, fetchServicesForBooking, API_BASE_URL]);
   const fetchRoomTypes = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/room-types`);
@@ -345,7 +352,7 @@ const Room = () => {
     } catch (error) {
       console.error(`Lỗi khi lấy danh sách loại phòng: ${error.message}`);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   const fetchServices = useCallback(async () => {
     try {
@@ -377,7 +384,7 @@ const Room = () => {
       console.error('Lỗi khi lấy danh sách dịch vụ:', error);
       setError(`Lỗi khi lấy danh sách dịch vụ: ${error.message}`);
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   const mapStatusFromAPI = (apiStatus) => {
     switch (apiStatus) {
@@ -415,12 +422,13 @@ const Room = () => {
     }
     return `${diffHours} giờ`;
   };
-
   useEffect(() => {
     const initializeData = async () => {
       try {
         setLoading(true);
+        // Load static data first (room types and services don't change often)
         await Promise.all([fetchRoomTypes(), fetchServices()]);
+        // Then load dynamic data (bookings and customers)
         await fetchBookings();
       } catch (error) {
         console.error('Error initializing data:', error);
@@ -434,7 +442,8 @@ const Room = () => {
   }, [fetchRoomTypes, fetchServices, fetchBookings]);
 
   useEffect(() => {
-    if (roomTypes.length > 0 && dataInitialized) {
+    // Only fetch rooms when we have all required data
+    if (roomTypes.length > 0 && dataInitialized && Object.keys(customers).length > 0) {
       console.log('All data ready, triggering fetchRooms with customers:', Object.keys(customers).length, 'customers loaded');
       console.log('Customer data:', customers);
       fetchRooms();
@@ -446,8 +455,7 @@ const Room = () => {
   };
   const handleCancelLogout = () => {
     setShowLogoutConfirm(false);
-  };
-  const handleRoomClick = async (room) => {
+  };  const handleRoomClick = async (room) => {
     if (['Phòng trống', 'Phòng đang thuê', 'Phòng đã đặt'].includes(room.status)) {
       console.log('Selected room:', room);
       setSelectedRoom(room);
@@ -532,12 +540,18 @@ const Room = () => {
           }
         }
 
-        // Load services cho phòng đang thuê
-        fetchServicesForBooking(room.maDatPhong).then(services => {
-          console.log('Fresh services loaded for room:', services);
-          setSelectedServices(services);
-          setSelectedRoom(prev => prev ? { ...prev, services: services } : prev);
-        });
+        // Lazy load services only when room is selected and occupied
+        if (room.services && room.services.length > 0) {
+          // Use cached services if available
+          setSelectedServices(room.services);
+        } else {
+          // Fetch fresh services if not cached
+          fetchServicesForBooking(room.maDatPhong).then(services => {
+            console.log('Fresh services loaded for room:', services);
+            setSelectedServices(services);
+            setSelectedRoom(prev => prev ? { ...prev, services: services } : prev);
+          });
+        }
       } else {
         setSelectedServices([]);
         setInvoiceCreated(false);
@@ -703,9 +717,8 @@ const Room = () => {
     setShowAddServiceForm(true);
     console.log('=== Add Service Form Opened ===\n');
   };
-
   // Add utility to fetch point program for a customer
-  const fetchCustomerPointProgram = async (customerName, tongDiem) => {
+  const fetchCustomerPointProgram = useCallback(async (customerName, tongDiem) => {
     try {
       // First, get customer info to find their maCT
       const customerRes = await axios.get(`${API_BASE_URL}/customers`, {
@@ -756,10 +769,10 @@ const Room = () => {
       console.error('Lỗi khi lấy chương trình điểm khách hàng:', error);
       return null;
     }
-  };
+  }, [API_BASE_URL]);
 
   // Lấy số điểm khả dụng của khách hàng qua API /customers/:maKhachHang/points
-  const fetchCustomerAvailablePoint = async (maKhachHang) => {
+  const fetchCustomerAvailablePoint = useCallback(async (maKhachHang) => {
     try {
       const response = await axios.get(`${API_BASE_URL}/customers/${maKhachHang}/points`);
       if (response.data.success && typeof response.data.data?.diemCoTheSuDung === 'number') {
@@ -770,7 +783,7 @@ const Room = () => {
       console.error('Lỗi khi lấy số điểm khả dụng:', error);
       return 0;
     }
-  };
+  }, [API_BASE_URL]);
 
   const handleCreateInvoice = async () => {
     setPointCustomerName(selectedRoom?.guestName || '');
@@ -803,7 +816,7 @@ const Room = () => {
       let soTienGiam = 0;
       if (selectedRoom?.guestName) {
         // Get customer info from API to get MaCT and tongDiem
-        const customerRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/customers`, { params: { pageNumber: 1, pageSize: 100 } }); if (customerRes.data.success && Array.isArray(customerRes.data.data)) {
+        const customerRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/customers`, { params: { pageNumber: 1, pageSize: 55 } }); if (customerRes.data.success && Array.isArray(customerRes.data.data)) {
           const customer = customerRes.data.data.find(c => c.hoTenKhachHang === selectedRoom.guestName);
           console.log('=== DEBUG: Customer Info ===');
           console.log('Guest Name:', selectedRoom.guestName);
@@ -1590,7 +1603,7 @@ const Room = () => {
                             let mucGiamGia = 0;
                             if (selectedRoom?.guestName) {
                               const customerRes = await axios.get(`${process.env.REACT_APP_API_URL}/api/customers`, {
-                                params: { pageNumber: 1, pageSize: 100 }
+                                params: { pageNumber: 1, pageSize: 55 }
                               });
                               if (customerRes.data.success && Array.isArray(customerRes.data.data)) {
                                 const customer = customerRes.data.data.find(c => c.hoTenKhachHang === selectedRoom.guestName);

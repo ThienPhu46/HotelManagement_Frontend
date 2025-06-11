@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '../../Design_Css/Admin/BookingRoom.css';
 import Sidebar from '../../Components/Staff/Components_Js/Sliderbar';
 import LogoutModal from '../../Components/Staff/Components_Js/LogoutModal';
@@ -34,10 +34,9 @@ const BookingList = () => {
     ngayKetThuc: '',
     gioKetThuc: ''
   });
-
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalBookingsCount, setTotalBookingsCount] = useState(0);
   const pageSize = 10;
-
   const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
 
   // Hàm định dạng thời gian theo UTC+7
@@ -51,6 +50,27 @@ const BookingList = () => {
     const seconds = pad(date.getSeconds());
     return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+07:00`;
   };
+
+  const fetchCustomerData = useCallback(async (bookingData) => {
+    try {
+      const customerPromises = bookingData.map(async (booking) => {
+        try {
+          const customerResponse = await axios.get(`${API_BASE_URL}/customers/${booking.maKhachHang}`);
+          if (customerResponse.data.success) {
+            return { [booking.maKhachHang]: customerResponse.data.data.hoTenKhachHang };
+          }
+          return { [booking.maKhachHang]: 'Unknown' };
+        } catch (error) {
+          return { [booking.maKhachHang]: 'Unknown' };
+        }
+      });
+      const customersData = await Promise.all(customerPromises);
+      const customersMap = Object.assign({}, ...customersData);
+      setCustomers(customersMap);
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu khách hàng:', error);
+    }
+  }, [API_BASE_URL]);
 
   useEffect(() => {
     const fetchEmployeeName = async () => {
@@ -75,33 +95,68 @@ const BookingList = () => {
       } catch (error) {
         console.error('Lỗi khi lấy tên hiển thị nhân viên:', error);
       }
-    };
-    fetchEmployeeName();
-  }, []);
+    };    fetchEmployeeName();
+  }, [API_BASE_URL]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Helper function để áp dụng frontend pagination nếu cần
+  const applyFrontendPagination = (data, currentPage, pageSize) => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return data.slice(startIndex, endIndex);
+  };
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
+        console.log(`🔄 Fetching bookings for page ${currentPage} with pageSize ${pageSize}`);
         const response = await axios.get(`${API_BASE_URL}/bookings`, {
           params: {
-            pageNumber: 1,
-            pageSize: 100,
-            searchTerm: null,
+            pageNumber: currentPage,
+            pageSize: pageSize,
+            searchTerm: searchTerm || null,
             sortBy: 'MaDatPhong',
-            sortOrder: 'DESC' // Sắp xếp mới nhất lên đầu
+            sortOrder: 'DESC'
           }
         });
+        
         if (response.data.success) {
-          const bookingData = response.data.data;
-          setBookings(bookingData);
-          await fetchCustomerData(bookingData);
+          let bookingData = response.data.data;
+          console.log(`📦 API returned ${bookingData.length} bookings for page ${currentPage}`);
+          
+          // Kiểm tra nếu API trả về nhiều hơn pageSize (API không hỗ trợ pagination)
+          if (bookingData.length > pageSize) {
+            console.warn(`⚠️ API returned ${bookingData.length} bookings instead of ${pageSize}. Applying frontend pagination.`);
+            
+            const paginatedData = applyFrontendPagination(bookingData, currentPage, pageSize);
+            console.log(`✂️ Sliced to ${paginatedData.length} items for page ${currentPage}`);
+            
+            setBookings(paginatedData);
+            setTotalBookingsCount(bookingData.length);
+            await fetchCustomerData(paginatedData);
+          } else {
+            // API hỗ trợ pagination đúng cách
+            setBookings(bookingData);
+            
+            if (response.data.total !== undefined) {
+              setTotalBookingsCount(response.data.total);
+            } else {
+              if (bookingData.length < pageSize) {
+                const estimated = (currentPage - 1) * pageSize + bookingData.length;
+                setTotalBookingsCount(estimated);
+              } else {
+                setTotalBookingsCount(currentPage * pageSize + 1);
+              }
+            }
+            await fetchCustomerData(bookingData);
+          }
         }
       } catch (error) {
         console.error('Lỗi khi lấy danh sách đặt phòng:', error);
       }
     };
+    
     fetchBookings();
-  }, []);
+  }, [currentPage, searchTerm, API_BASE_URL, fetchCustomerData]);
 
   useEffect(() => {
     const fetchRoomTypes = async () => {
@@ -124,9 +179,8 @@ const BookingList = () => {
       } catch (error) {
         console.error('Lỗi khi lấy danh sách loại phòng:', error);
       }
-    };
-    fetchRoomTypes();
-  }, []);
+    };    fetchRoomTypes();
+  }, [API_BASE_URL]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchAvailableRooms = async () => {
@@ -153,40 +207,13 @@ const BookingList = () => {
       } catch (error) {
         console.error('Lỗi khi lấy danh sách phòng trống:', error);
       }
-    };
-
-    if (Object.keys(roomTypes).length > 0) {
+    };    if (Object.keys(roomTypes).length > 0) {
       fetchAvailableRooms();
     }
-  }, [roomTypes]);
-
-  const fetchCustomerData = async (bookingData) => {
-    try {
-      const customerPromises = bookingData.map(async (booking) => {
-        try {
-          const customerResponse = await axios.get(`${API_BASE_URL}/customers/${booking.maKhachHang}`);
-          if (customerResponse.data.success) {
-            return { [booking.maKhachHang]: customerResponse.data.data.hoTenKhachHang };
-          }
-          return { [booking.maKhachHang]: 'Unknown' };
-        } catch (error) {
-          return { [booking.maKhachHang]: 'Unknown' };
-        }
-      });
-      const customersData = await Promise.all(customerPromises);
-      const customersMap = Object.assign({}, ...customersData);
-      setCustomers(customersMap);
-    } catch (error) {
-      console.error('Lỗi khi lấy dữ liệu khách hàng:', error);
-    }
-  };
-
-  // Phân trang cho danh sách booking
-  const filteredBookings = bookings.filter((booking) =>
-    customers[booking.maKhachHang]?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const totalPages = Math.ceil(filteredBookings.length / pageSize);
-  const paginatedBookings = filteredBookings.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [roomTypes, API_BASE_URL]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phân trang cho danh sách booking - sử dụng dữ liệu từ API
+  const totalPages = Math.ceil(totalBookingsCount / pageSize);
+  const paginatedBookings = bookings; // Dữ liệu đã được phân trang từ API
 
   const handleDetails = async (maDatPhong) => {
     try {
@@ -332,21 +359,17 @@ const BookingList = () => {
       if (!confirmResponse.data.success) {
         throw new Error('Xác nhận đặt phòng thất bại: ' + (confirmResponse.data.message || 'Lỗi không xác định'));
       }
-      console.log(`Xác nhận đặt phòng thành công`);
-
-      setShowSaveConfirm(true);
+      console.log(`Xác nhận đặt phòng thành công`);      setShowSaveConfirm(true);
       setIsFormOpen(false);
       setSelectedRooms([]);
       setCustomerInfo({ hoTen: '', sdt: '' });
       setBookingInfo({ ngayBatDau: '', gioBatDau: '', ngayKetThuc: '', gioKetThuc: '' });
+      
+      // Reset về trang 1 sau khi tạo booking mới
+      setCurrentPage(1);
 
-      const updatedBookingsResponse = await axios.get(`${API_BASE_URL}/bookings`, {
-        params: { pageNumber: 1, pageSize: 100, sortBy: 'MaDatPhong', sortOrder: 'ASC' }
-      });
-      if (updatedBookingsResponse.data.success) {
-        setBookings(updatedBookingsResponse.data.data);
-        await fetchCustomerData(updatedBookingsResponse.data.data);
-      }
+      // Refresh danh sách bookings (sẽ tự động fetch trang 1 do currentPage = 1)
+      // useEffect sẽ tự động trigger khi currentPage thay đổi
 
       const roomResponse = await axios.get(`${API_BASE_URL}/rooms`, {
         params: {
@@ -468,6 +491,11 @@ const BookingList = () => {
     console.log('Mở tùy chọn bổ sung');
   };
 
+  // Reset trang về 1 khi tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   return (
     <div className="booking-list-container">
       <Sidebar
@@ -502,16 +530,13 @@ const BookingList = () => {
           <button className="add-booking-button" onClick={handleAddBooking}>
             Đặt phòng
           </button>
-        </div>
-
-        <div className="table-wrapper">
+        </div>        <div className="table-wrapper">
           <table className="booking-table">
             <thead>
               <tr>
                 <th>Số phiếu thuê</th>
                 <th>Tên khách hàng</th>
                 <th>Ngày lập phiếu</th>
-                <th>Tên nhân viên</th>
                 <th>Chi tiết</th>
                 {/* Đã xóa cột Xóa */}
               </tr>
@@ -522,7 +547,6 @@ const BookingList = () => {
                   <td>{booking.maDatPhong}</td>
                   <td>{customers[booking.maKhachHang] || 'Unknown'}</td>
                   <td>{new Date(booking.ngayDat).toLocaleDateString('vi-VN')}</td>
-                  <td>{employeeName}</td>
                   <td>
                     <button
                       className="details-buttonn"
@@ -825,8 +849,7 @@ const BookingList = () => {
       {showDetailsModal && selectedBooking && (
         <div className="details-modal">
           <div className="details-modal-contentt">
-            <h2 className="details-modal-title">Chi Tiết Phiếu Thuê {selectedBooking.id}</h2>
-            <div className="details-modal-header">
+            <h2 className="details-modal-title">Chi Tiết Phiếu Thuê {selectedBooking.id}</h2>            <div className="details-modal-header">
               <div className="header-item">
                 <span role="img" aria-label="user"><img src="/icon_LTW/ĐP_ChiTietphieuthue.png" alt="Khách hàng"></img></span>
                 {selectedBooking.customerName}
@@ -834,10 +857,6 @@ const BookingList = () => {
               <div className="header-item">
                 <span role="img" aria-label="calendar"><img src="/icon_LTW/Lich.png" alt="Ngày lập"></img></span>
                 {selectedBooking.bookingDate}
-              </div>
-              <div className="header-item">
-                <span role="img" aria-label="employee"><img src="/icon_LTW/ĐPChiTietphieuthue2.png" alt="Nhân viên"></img></span>
-                {selectedBooking.employeeName}
               </div>
             </div>
             <table className="bk-details-table">
